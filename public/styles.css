@@ -31,7 +31,7 @@ a { color: var(--accent); }
   padding: 7px 10px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
 .navbtn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
-main { max-width: 760px; margin: 0 auto; padding: 14px 12px calc(env(safe-area-inset-bottom) + 40px); }
+main { max-width: 760px; margin: 0 auto; padding: 14px 12px calc(env(safe-area-inset-bottom) + 96px); }
 h1 { font-size: 24px; margin: 6px 0 4px; }
 h2 { font-size: 18px; margin: 22px 0 10px; color: var(--accent); }
 h3 { font-size: 15px; margin: 0 0 8px; }
@@ -112,7 +112,7 @@ th.sorted { color: var(--accent); }
 .sync.bad { color: var(--red); font-weight: 700; }
 
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
-.modal { background: var(--card); border-top: 2px solid var(--accent); width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 16px 14px calc(env(safe-area-inset-bottom) + 16px); max-height: 92vh; overflow: auto; }
+.modal { background: var(--card); border-top: 2px solid var(--accent); width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 16px 14px calc(env(safe-area-inset-bottom) + 72px); max-height: 92vh; overflow: auto; }
 @media (min-width: 600px) { .modal-bg { align-items: center; } .modal { border-radius: 18px; border: 2px solid var(--accent); } }
 .pad-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pad-side { border: 2px solid var(--line); border-radius: 12px; padding: 8px; background: var(--card-2); cursor: pointer; }
