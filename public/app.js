@@ -15,7 +15,7 @@ const S = {
   tournaments: LS.get("pm.cache", []),
   pending: LS.get("pm.pending", {}), // edits not yet saved to the server, keyed by id
   legacy: [],
-  includeLegacy: LS.get("pm.includeLegacy", true),
+  includeLegacy: LS.get("pm.includeLegacy2", false),
   loaded: false,
   serverOk: null,
   draft: null,
@@ -424,12 +424,12 @@ function renderStats() {
   const cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
   $app.innerHTML = `
     <h1>All-time leaderboard</h1>
-    <label class="row small"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""}/> Include totals from the old app</label>
     <p class="small muted">Tap a column to sort. Match % = matches won (a draw counts as half). Pts % = share of all points played that you won. Avg = points per match.</p>
     <div class="table-wrap"><table class="stats">
       <tr>${cols.map(([k, l]) => `<th class="${k === "name" ? "l " : ""}${k === key ? "sorted" : ""}" data-act="sort" data-k="${k}">${l}${k === key ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       ${rows.map((r) => `<tr><td class="name l">${esc(r.name)}</td>${cols.slice(1).map(([k]) => `<td>${k === "diff" && r[k] > 0 ? "+" : ""}${k === "ptsPct" ? r[k].toFixed(1) : r[k]}${k === "winPct" || k === "ptsPct" ? "%" : ""}</td>`).join("")}</tr>`).join("")}
     </table></div>
+    <label class="row small" style="margin-top:14px"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""}/> Include totals from the old app</label>
     <h2>Backup</h2>
     <div class="row"><button class="btn" data-act="export-json">Download everything (JSON)</button>
       <button class="btn" data-act="export-csv">Download all matches (CSV)</button></div>`;
@@ -555,7 +555,7 @@ document.addEventListener("click", async (e) => {
       LS.set("pm.statsSort", S.statsSort);
       return renderStats();
     }
-    case "legacy": S.includeLegacy = el.checked; LS.set("pm.includeLegacy", S.includeLegacy); return renderStats();
+    case "legacy": S.includeLegacy = el.checked; LS.set("pm.includeLegacy2", S.includeLegacy); return renderStats();
     case "export-json": return download(`padel-backup-${today()}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tournaments: S.tournaments, legacy: S.legacy }, null, 1), "application/json");
     case "export-csv": return exportCsv();
   }
