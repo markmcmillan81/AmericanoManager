@@ -1,6 +1,6 @@
 {
-  "name": "Padel Spot",
-  "short_name": "Padel Spot",
+  "name": "Dad's Padel App",
+  "short_name": "Dad's Padel App",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f3f4f8",
