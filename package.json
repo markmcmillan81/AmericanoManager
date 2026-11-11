@@ -1,0 +1,14 @@
+{
+  "name": "padel-spot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "local": "node tools/local-server.mjs",
+    "dev": "netlify dev",
+    "test": "node tests/check-schedules.mjs && node tests/simulate.mjs",
+    "schedules": "node tools/generate-schedules.mjs && node tools/structured-6-7.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.9"
+  }
+}

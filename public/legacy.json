@@ -1,0 +1,313 @@
+{
+ "note": "Totals carried over from the old app (screenshot 11 Nov 2026). Edit freely.",
+ "players": [
+  {
+   "name": "Tom A",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 6,
+   "d": 0,
+   "l": 1,
+   "pf": 100,
+   "pa": 68
+  },
+  {
+   "name": "Phil L",
+   "trn": 15,
+   "trnWin": 12,
+   "mat": 98,
+   "w": 79,
+   "d": 6,
+   "l": 13,
+   "pf": 1427,
+   "pa": 925
+  },
+  {
+   "name": "Julian",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 5,
+   "d": 1,
+   "l": 1,
+   "pf": 97,
+   "pa": 71
+  },
+  {
+   "name": "James F",
+   "trn": 4,
+   "trnWin": 2,
+   "mat": 28,
+   "w": 19,
+   "d": 3,
+   "l": 6,
+   "pf": 385,
+   "pa": 287
+  },
+  {
+   "name": "Ed W",
+   "trn": 3,
+   "trnWin": 1,
+   "mat": 14,
+   "w": 8,
+   "d": 3,
+   "l": 3,
+   "pf": 176,
+   "pa": 160
+  },
+  {
+   "name": "Rob A",
+   "trn": 12,
+   "trnWin": 1,
+   "mat": 77,
+   "w": 39,
+   "d": 9,
+   "l": 29,
+   "pf": 948,
+   "pa": 900
+  },
+  {
+   "name": "Mark M",
+   "trn": 20,
+   "trnWin": 2,
+   "mat": 133,
+   "w": 66,
+   "d": 17,
+   "l": 50,
+   "pf": 1626,
+   "pa": 1510
+  },
+  {
+   "name": "Julian D",
+   "trn": 2,
+   "trnWin": 0,
+   "mat": 14,
+   "w": 7,
+   "d": 1,
+   "l": 6,
+   "pf": 137,
+   "pa": 143
+  },
+  {
+   "name": "Ben J",
+   "trn": 9,
+   "trnWin": 0,
+   "mat": 56,
+   "w": 25,
+   "d": 5,
+   "l": 26,
+   "pf": 645,
+   "pa": 699
+  },
+  {
+   "name": "Dan M",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 3,
+   "d": 1,
+   "l": 3,
+   "pf": 86,
+   "pa": 82
+  },
+  {
+   "name": "Toby C",
+   "trn": 9,
+   "trnWin": 0,
+   "mat": 63,
+   "w": 27,
+   "d": 8,
+   "l": 28,
+   "pf": 768,
+   "pa": 744
+  },
+  {
+   "name": "Peter R",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 3,
+   "d": 1,
+   "l": 3,
+   "pf": 83,
+   "pa": 85
+  },
+  {
+   "name": "Chris Ger",
+   "trn": 8,
+   "trnWin": 0,
+   "mat": 49,
+   "w": 20,
+   "d": 6,
+   "l": 23,
+   "pf": 590,
+   "pa": 586
+  },
+  {
+   "name": "Enzo C",
+   "trn": 11,
+   "trnWin": 0,
+   "mat": 77,
+   "w": 31,
+   "d": 5,
+   "l": 41,
+   "pf": 877,
+   "pa": 915
+  },
+  {
+   "name": "Sandy L",
+   "trn": 10,
+   "trnWin": 0,
+   "mat": 70,
+   "w": 27,
+   "d": 6,
+   "l": 37,
+   "pf": 784,
+   "pa": 840
+  },
+  {
+   "name": "Simon H",
+   "trn": 18,
+   "trnWin": 1,
+   "mat": 119,
+   "w": 44,
+   "d": 11,
+   "l": 64,
+   "pf": 1338,
+   "pa": 1462
+  },
+  {
+   "name": "James K",
+   "trn": 2,
+   "trnWin": 0,
+   "mat": 14,
+   "w": 5,
+   "d": 2,
+   "l": 7,
+   "pf": 126,
+   "pa": 154
+  },
+  {
+   "name": "Nick S",
+   "trn": 2,
+   "trnWin": 0,
+   "mat": 14,
+   "w": 5,
+   "d": 2,
+   "l": 7,
+   "pf": 121,
+   "pa": 159
+  },
+  {
+   "name": "Chris Gri",
+   "trn": 13,
+   "trnWin": 1,
+   "mat": 84,
+   "w": 29,
+   "d": 9,
+   "l": 46,
+   "pf": 936,
+   "pa": 1080
+  },
+  {
+   "name": "Leon",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 2,
+   "d": 0,
+   "l": 5,
+   "pf": 56,
+   "pa": 112
+  },
+  {
+   "name": "Alex R",
+   "trn": 3,
+   "trnWin": 0,
+   "mat": 21,
+   "w": 6,
+   "d": 2,
+   "l": 13,
+   "pf": 234,
+   "pa": 270
+  },
+  {
+   "name": "Mark T",
+   "trn": 3,
+   "trnWin": 0,
+   "mat": 21,
+   "w": 6,
+   "d": 3,
+   "l": 12,
+   "pf": 246,
+   "pa": 258
+  },
+  {
+   "name": "Gary B",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 2,
+   "d": 1,
+   "l": 4,
+   "pf": 73,
+   "pa": 95
+  },
+  {
+   "name": "Lee J",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 2,
+   "d": 0,
+   "l": 5,
+   "pf": 60,
+   "pa": 108
+  },
+  {
+   "name": "George A",
+   "trn": 4,
+   "trnWin": 0,
+   "mat": 28,
+   "w": 7,
+   "d": 4,
+   "l": 17,
+   "pf": 309,
+   "pa": 363
+  },
+  {
+   "name": "Charlie C",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 1,
+   "d": 1,
+   "l": 5,
+   "pf": 52,
+   "pa": 60
+  },
+  {
+   "name": "David M",
+   "trn": 3,
+   "trnWin": 0,
+   "mat": 21,
+   "w": 2,
+   "d": 4,
+   "l": 15,
+   "pf": 202,
+   "pa": 302
+  },
+  {
+   "name": "Leon L",
+   "trn": 1,
+   "trnWin": 0,
+   "mat": 7,
+   "w": 0,
+   "d": 1,
+   "l": 6,
+   "pf": 62,
+   "pa": 106
+  }
+ ]
+}

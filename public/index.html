@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Padel Spot" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Padel Spot</title>
+</head>
+<body>
+  <header class="top">
+    <a href="#/" class="brand"><img src="icons/icon-192.png" alt="" /><span id="app-name">Padel Spot</span></a>
+    <nav>
+      <a href="#/stats" class="navbtn">Leaderboard</a>
+      <button id="organiser-btn" class="navbtn" data-act="organiser">Organiser</button>
+    </nav>
+  </header>
+  <main id="app"><p class="muted center">Loading…</p></main>
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
