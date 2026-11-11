@@ -1,4 +1,4 @@
-# Dad's Padel App
+# Dad's Padel Club
 
 Runs weekly padel Americanos and Mexicanos for 4–8 players, keeps every result, and gives everyone a link to view live scores, past results and the all-time leaderboard.
 
@@ -94,7 +94,7 @@ Made a mistake? Open the tournament, tap **Reopen to edit scores**, fix it, and 
 - **Old-app totals:** these are in `public/legacy.json`, typed from your 11 Nov 2026 screenshot. Edit them on GitHub (open the file, click the pencil, Commit). Make sure names match exactly how you add players in the app (e.g. "Mark M"), so their stats combine.
 - **Changes and updates:** any change committed on GitHub goes live on Netlify in about a minute.
 - **Second organiser:** give them the organiser key. To revoke access, change `ADMIN_KEY` in Netlify and redeploy. Everyone then needs to log in again with the new key.
-- **App name:** change "Dad's Padel App" in `public/index.html` and `public/manifest.webmanifest`.
+- **App name:** change "Dad's Padel Club" in `public/index.html` and `public/manifest.webmanifest`.
 
 ## Files
 

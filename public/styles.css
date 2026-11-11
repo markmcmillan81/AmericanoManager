@@ -23,10 +23,13 @@ a { color: var(--accent); }
 
 .top { position: sticky; top: 0; z-index: 10; background: #000; color: var(--ink); border-bottom: 2px solid var(--accent);
   padding: calc(env(safe-area-inset-top) + 10px) 14px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 800; font-size: 16px; line-height: 1.15; min-width: 0; }
-.brand span { max-width: 7.5em; }
-.brand img { width: 40px; height: 40px; border-radius: 10px; }
-.top nav { display: flex; gap: 8px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; min-width: 0; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+#app-name { font-weight: 800; font-size: 19px; }
+.est { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .03em; margin-top: 2px; }
+.brand img { width: 48px; height: 48px; border-radius: 12px; flex: none; }
+.top nav { display: flex; gap: 8px; flex: none; }
+.navbtn.two { line-height: 1.2; text-align: center; padding: 8px 10px; font-size: 13px; }
 .navbtn { background: transparent; border: 1px solid #3a3a3a; color: var(--ink); border-radius: 10px; white-space: nowrap;
   padding: 7px 10px; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
 .navbtn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }

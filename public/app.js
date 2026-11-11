@@ -134,7 +134,7 @@ let refreshTimer = null;
 function render() {
   const { page, id } = route();
   document.getElementById("organiser-btn").classList.toggle("on", isAdmin());
-  document.getElementById("organiser-btn").textContent = isAdmin() ? "Organiser ✓" : "Organiser";
+  document.getElementById("organiser-btn").innerHTML = isAdmin() ? "Organiser<br>logged in ✓" : "Organiser<br>login";
   clearInterval(refreshTimer);
   if (page === "new") return renderSetup();
   if (page === "t") return renderTournament(id);
@@ -150,10 +150,9 @@ function renderHome() {
   $app.innerHTML = `
     ${S.serverOk === false ? `<p class="error">Can't reach the server — showing the last saved copy.</p>` : ""}
     ${isAdmin() ? `<a class="btn primary big" href="#/new" style="display:block;text-align:center;text-decoration:none">+ New tournament</a>` : ""}
-    ${live.length ? `<h2>Live now</h2>` + live.map(cardFor).join("") : ""}
-    <h2>Results</h2>
-    ${done.length ? done.map(cardFor).join("") : `<p class="muted">No tournaments yet.${isAdmin() ? "" : " The organiser starts them from this page."}</p>`}
-    <p class="center small muted" style="margin-top:28px"><a href="#/stats">All-time leaderboard →</a></p>`;
+    ${live.length ? `<h2>Live tournaments</h2>` + live.map(cardFor).join("") : ""}
+    <h2>Previous results</h2>
+    ${done.length ? done.map(cardFor).join("") : `<p class="muted">No tournaments yet.${isAdmin() ? "" : " The organiser starts them from this page."}</p>`}`;
   if (live.length) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "home") renderHome(); } }, 20000);
 }
 

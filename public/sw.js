@@ -1,6 +1,6 @@
 // Keeps the app usable with a weak signal at the courts. Always tries the network first,
 // falls back to the last copy. Data (/api) is never cached here — the app keeps its own copy.
-const CACHE = "padel-app-v5";
+const CACHE = "padel-app-v6";
 const SHELL = ["./", "index.html", "app.js", "scheduler.js", "schedules.js", "styles.css", "legacy.json", "manifest.webmanifest", "icons/icon-192.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
