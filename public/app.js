@@ -415,18 +415,21 @@ function padSave() {
 function renderStats() {
   const finished = S.tournaments.filter((t) => t.status === "finished");
   const rows = careerStats(finished, S.includeLegacy ? S.legacy : []).map((r) => ({
-    ...r, diff: r.pf - r.pa, winPct: r.mat ? Math.round((100 * (r.w + r.d / 2)) / r.mat) : 0, avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0,
+    ...r, diff: r.pf - r.pa,
+    winPct: r.mat ? Math.round((100 * (r.w + r.d / 2)) / r.mat) : 0,
+    ptsPct: r.pf + r.pa ? Math.round((1000 * r.pf) / (r.pf + r.pa)) / 10 : 0,
+    avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0,
   }));
   const { key, dir } = S.statsSort;
   rows.sort((a, b) => (typeof a[key] === "string" ? a[key].localeCompare(b[key]) * -dir : (a[key] - b[key]) * dir) || b.trnWin - a.trnWin || b.winPct - a.winPct);
-  const cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["winPct", "Win %"], ["avg", "Avg"]];
+  const cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
   $app.innerHTML = `
     <h1>All-time leaderboard</h1>
     <label class="row small"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""}/> Include totals from the old app</label>
-    <p class="small muted">Tap a column to sort. Win % counts a draw as half a win. Avg = points per match.</p>
-    <div class="table-wrap"><table>
+    <p class="small muted">Tap a column to sort. Match % = matches won (a draw counts as half). Pts % = share of all points played that you won. Avg = points per match.</p>
+    <div class="table-wrap"><table class="stats">
       <tr>${cols.map(([k, l]) => `<th class="${k === "name" ? "l " : ""}${k === key ? "sorted" : ""}" data-act="sort" data-k="${k}">${l}${k === key ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
-      ${rows.map((r) => `<tr><td class="name l">${esc(r.name)}</td>${cols.slice(1).map(([k]) => `<td>${k === "diff" && r[k] > 0 ? "+" : ""}${r[k]}${k === "winPct" ? "%" : ""}</td>`).join("")}</tr>`).join("")}
+      ${rows.map((r) => `<tr><td class="name l">${esc(r.name)}</td>${cols.slice(1).map(([k]) => `<td>${k === "diff" && r[k] > 0 ? "+" : ""}${k === "ptsPct" ? r[k].toFixed(1) : r[k]}${k === "winPct" || k === "ptsPct" ? "%" : ""}</td>`).join("")}</tr>`).join("")}
     </table></div>
     <h2>Backup</h2>
     <div class="row"><button class="btn" data-act="export-json">Download everything (JSON)</button>
