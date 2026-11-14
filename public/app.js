@@ -139,6 +139,7 @@ function render() {
   if (page === "new") return renderSetup();
   if (page === "t") return renderTournament(id);
   if (page === "stats") return renderStats();
+  if (page === "about") return renderAbout();
   return renderHome();
 }
 window.addEventListener("hashchange", () => { S.swapSel = null; render(); window.scrollTo(0, 0); });
@@ -152,7 +153,8 @@ function renderHome() {
     ${isAdmin() ? `<a class="btn primary big" href="#/new" style="display:block;text-align:center;text-decoration:none">+ New tournament</a>` : ""}
     ${live.length ? `<h2>Live tournaments</h2>` + live.map(cardFor).join("") : ""}
     <h2>Previous results</h2>
-    ${done.length ? done.map(cardFor).join("") : `<p class="muted">No tournaments yet.${isAdmin() ? "" : " The organiser starts them from this page."}</p>`}`;
+    ${done.length ? done.map(cardFor).join("") : `<p class="muted">No tournaments yet.${isAdmin() ? "" : " The organiser starts them from this page."}</p>`}
+    <p class="center small" style="margin-top:28px"><a href="#/about">About the club</a></p>`;
   if (live.length) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "home") renderHome(); } }, 20000);
 }
 
@@ -168,6 +170,18 @@ function cardFor(t) {
     ${winners.length ? `<div style="margin-top:6px">🏆 <strong>${winners.map(esc).join(" &amp; ")}</strong> <span class="muted small">${lead.pf} pts</span></div>`
       : lead && lead.mat ? `<div style="margin-top:6px" class="small">Leading: <strong>${esc(lead.name)}</strong> (${lead.pf})</div>` : ""}
   </a>`;
+}
+
+// ============ about ============
+function renderAbout() {
+  $app.innerHTML = `
+    <h1>About the club</h1>
+    <div class="card about">
+      <p>It all started at a fireworks night in 2025, when Charlie rounded up eight dads for a game of padel. It didn't take long to realise we'd stumbled onto something worth keeping.</p>
+      <p>These days we're a small community of dads from in and around the school, playing every Tuesday at 8:30am for 90 minutes, all year round (although the school holidays can make getting the numbers a bit of a challenge!).</p>
+      <p>Mostly Americanos, with the odd shake-up of format, and the occasional social off the court too.</p>
+    </div>
+    <p class="center small muted"><a href="#/">← Back to results</a></p>`;
 }
 
 // ============ setup ============

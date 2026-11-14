@@ -53,7 +53,7 @@ createServer(async (req, res) => {
   }
 }).listen(PORT, "0.0.0.0", () => {
   const lan = Object.values(networkInterfaces()).flat().find((i) => i && i.family === "IPv4" && !i.internal)?.address;
-  console.log(`\n  Charlie's Padel Club is running.\n`);
+  console.log(`\n  Charlie's Club is running.\n`);
   console.log(`  On this laptop:  http://localhost:${PORT}`);
   if (lan) console.log(`  On your phone:   http://${lan}:${PORT}   (same Wi-Fi)`);
   console.log(`  Organiser key:   ${process.env.ADMIN_KEY}   (set in the .env file)`);

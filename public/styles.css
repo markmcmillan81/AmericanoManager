@@ -1,4 +1,4 @@
-/* Charlie's Padel Club — black & yellow theme (yellow sampled from the logo: #FDD418) */
+/* Charlie's Club — black & yellow theme (yellow sampled from the logo: #FDD418) */
 :root {
   --accent: #fdd418;
   --accent-dim: #e9c216;
@@ -25,8 +25,11 @@ a { color: var(--accent); }
   padding: calc(env(safe-area-inset-top) + 10px) 14px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; min-width: 0; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-#app-name { font-weight: 800; font-size: 19px; }
-.est { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: .03em; margin-top: 2px; }
+#app-name { font-weight: 800; font-size: 19px; color: var(--ink); text-decoration: none; }
+.brand-logo { display: flex; flex: none; }
+.est a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.about p { font-size: 17px; line-height: 1.55; margin: 0 0 14px; }
+.est { display: flex; flex-wrap: wrap; column-gap: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--accent); letter-spacing: .03em; margin-top: 2px; }
 .brand img { width: 48px; height: 48px; border-radius: 12px; flex: none; }
 .top nav { display: flex; gap: 8px; flex: none; }
 .navbtn.two { line-height: 1.2; text-align: center; padding: 8px 10px; font-size: 13px; }
