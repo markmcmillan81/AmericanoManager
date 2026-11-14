@@ -183,7 +183,10 @@ export function winnersOf(t) {
   return table[0].slots.map((s) => t.players[s]);
 }
 
-export function careerStats(tournaments, legacy = []) {
+// opts.exclude: Set of lower-case names — drop every match any of them played in.
+// opts.from: "YYYY-MM-DD" — only tournaments on or after this date.
+export function careerStats(tournaments, legacy = [], opts = {}) {
+  const exclude = opts.exclude || new Set();
   const map = new Map();
   const row = (name) => {
     const key = name.trim().toLowerCase();
@@ -196,21 +199,71 @@ export function careerStats(tournaments, legacy = []) {
   }
   for (const t of tournaments) {
     if (t.status !== "finished") continue;
-    t.players.forEach((name) => row(name).trn++);
-    winnersOf(t).forEach((name) => row(name).trnWin++);
+    if (opts.from && (t.date || "") < opts.from) continue;
+    const playedHere = new Set();
     for (const round of t.rounds) for (const m of round.matches) {
       if (!matchDone(m)) continue;
+      const names = [...m.a, ...m.b].map((s) => t.players[s]);
+      if (names.some((n) => exclude.has(n.trim().toLowerCase()))) continue;
       for (const [side, mine, theirs] of [[m.a, m.sa, m.sb], [m.b, m.sb, m.sa]]) {
         for (const s of side) {
           const r = row(t.players[s]);
+          playedHere.add(r);
           r.mat++; r.pf += mine; r.pa += theirs;
           if (mine > theirs) r.w++; else if (mine < theirs) r.l++; else r.d++;
         }
       }
     }
+    playedHere.forEach((r) => r.trn++);
+    if (!exclude.size) winnersOf(t).forEach((name) => row(name).trnWin++);
   }
   return [...map.values()];
 }
+
+// Every finished match as plain names: [{ date, tournament, a:[n,n], b:[n,n], sa, sb }]
+export function allMatches(tournaments, opts = {}) {
+  const out = [];
+  for (const t of tournaments) {
+    if (t.status !== "finished") continue;
+    if (opts.from && (t.date || "") < opts.from) continue;
+    t.rounds.forEach((round, ri) => round.matches.forEach((m) => {
+      if (!matchDone(m)) return;
+      out.push({ date: t.date, tournament: t.name, id: t.id, round: ri + 1, a: m.a.map((s) => t.players[s]), b: m.b.map((s) => t.players[s]), sa: m.sa, sb: m.sb });
+    }));
+  }
+  return out.sort((x, y) => (y.date || "").localeCompare(x.date || "") || y.round - x.round);
+}
+
+const blank = () => ({ mat: 0, w: 0, d: 0, l: 0, pf: 0, pa: 0, recent: [] });
+function add(rec, mine, theirs, m) {
+  rec.mat++; rec.pf += mine; rec.pa += theirs;
+  if (mine > theirs) rec.w++; else if (mine < theirs) rec.l++; else rec.d++;
+  if (rec.recent.length < 6) rec.recent.push(m);
+}
+
+// Head to head for one player: how they do with and against everyone else.
+export function headToHead(tournaments, player, opts = {}) {
+  const me = player.trim().toLowerCase();
+  const others = new Map(); // key -> { name, with, against }
+  const get = (n) => {
+    const k = n.trim().toLowerCase();
+    if (!others.has(k)) others.set(k, { name: n.trim(), with: blank(), against: blank() });
+    return others.get(k);
+  };
+  const overall = blank();
+  for (const m of allMatches(tournaments, opts)) {
+    const inA = m.a.some((n) => n.trim().toLowerCase() === me), inB = m.b.some((n) => n.trim().toLowerCase() === me);
+    if (!inA && !inB) continue;
+    const [mine, theirs, mySide, theirSide] = inA ? [m.sa, m.sb, m.a, m.b] : [m.sb, m.sa, m.b, m.a];
+    add(overall, mine, theirs, m);
+    for (const n of mySide) if (n.trim().toLowerCase() !== me) add(get(n).with, mine, theirs, m);
+    for (const n of theirSide) add(get(n).against, mine, theirs, m);
+  }
+  return { overall, others: [...others.values()] };
+}
+
+export const matchPct = (r) => (r.mat ? Math.round((100 * (r.w + r.d / 2)) / r.mat) : 0);
+export const ptsPct = (r) => (r.pf + r.pa ? Math.round((1000 * r.pf) / (r.pf + r.pa)) / 10 : 0);
 
 export function shuffle(arr) {
   const a = [...arr];

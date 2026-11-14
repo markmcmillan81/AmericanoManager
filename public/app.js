@@ -1,6 +1,7 @@
 import {
   MIN_PLAYERS, MAX_PLAYERS, validateSetup, recommendedRounds, fairStops, cycleInfo, buildInitialRounds,
   matchDone, roundDone, sittingOut, standings, nextMexicanoRound, meetings, winnersOf, careerStats, shuffle,
+  headToHead, matchPct, ptsPct,
 } from "./scheduler.js";
 
 // ============ state ============
@@ -21,6 +22,9 @@ const S = {
   draft: null,
   swapSel: null,
   statsSort: LS.get("pm.statsSort", { key: "trnWin", dir: -1 }),
+  filters: Object.assign({ minTrn: 0, minMat: 0, exclude: [], period: "all" }, LS.get("pm.filters", {})),
+  filtersOpen: false,
+  h2h: LS.get("pm.h2h", { a: "", b: "" }),
 };
 const isAdmin = () => !!S.adminKey;
 
@@ -138,7 +142,7 @@ function render() {
   clearInterval(refreshTimer);
   if (page === "new") return renderSetup();
   if (page === "t") return renderTournament(id);
-  if (page === "stats") return renderStats();
+  if (page === "stats") return id === "h2h" ? renderH2H() : renderStats();
   if (page === "about") return renderAbout();
   if (page === "live") return renderList("live");
   if (page === "results") return renderList("results");
@@ -452,28 +456,135 @@ function padSave() {
 }
 
 // ============ stats ============
+const PERIODS = [["all", "All time"], ["year", "This year"], ["3m", "Last 3 months"]];
+function periodFrom(p) {
+  const d = new Date();
+  if (p === "year") return `${d.getFullYear()}-01-01`;
+  if (p === "3m") { d.setMonth(d.getMonth() - 3); return d.toISOString().slice(0, 10); }
+  return null;
+}
+const saveFilters = () => LS.set("pm.filters", S.filters);
+function statsTabs(which) {
+  return `<div class="seg" style="margin:4px 0 14px"><button data-act="go" data-href="#/stats" class="${which === "table" ? "on" : ""}">Table</button>
+    <button data-act="go" data-href="#/stats/h2h" class="${which === "h2h" ? "on" : ""}">Head to head</button></div>`;
+}
+// Names that have played at least one match in the new app (for pickers)
+function appPlayers() {
+  return careerStats(S.tournaments.filter((t) => t.status === "finished"), []).filter((r) => r.mat)
+    .sort((x, y) => y.mat - x.mat || x.name.localeCompare(y.name)).map((r) => r.name);
+}
+
 function renderStats() {
+  const F = S.filters;
   const finished = S.tournaments.filter((t) => t.status === "finished");
-  const rows = careerStats(finished, S.includeLegacy ? S.legacy : []).map((r) => ({
-    ...r, diff: r.pf - r.pa,
-    winPct: r.mat ? Math.round((100 * (r.w + r.d / 2)) / r.mat) : 0,
-    ptsPct: r.pf + r.pa ? Math.round((1000 * r.pf) / (r.pf + r.pa)) / 10 : 0,
-    avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0,
-  }));
+  const matchFilters = F.exclude.length > 0 || F.period !== "all"; // old-app totals have no match detail
+  const useLegacy = S.includeLegacy && !matchFilters;
+  const excludeSet = new Set(F.exclude.map((n) => n.toLowerCase()));
+  let rows = careerStats(finished, useLegacy ? S.legacy : [], { exclude: excludeSet, from: periodFrom(F.period) })
+    .filter((r) => !excludeSet.has(r.name.toLowerCase()))
+    .map((r) => ({ ...r, diff: r.pf - r.pa, winPct: matchPct(r), ptsPct: ptsPct(r), avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0 }));
+  const total = rows.filter((r) => r.mat).length;
+  rows = rows.filter((r) => r.mat && r.trn >= F.minTrn && r.mat >= F.minMat);
   const { key, dir } = S.statsSort;
   rows.sort((a, b) => (typeof a[key] === "string" ? a[key].localeCompare(b[key]) * -dir : (a[key] - b[key]) * dir) || b.trnWin - a.trnWin || b.winPct - a.winPct);
-  const cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
+  let cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
+  if (excludeSet.size) cols = cols.filter(([k]) => k !== "trnWin"); // tournament wins don't make sense with matches removed
+
+  const summary = [
+    F.period !== "all" && PERIODS.find((p) => p[0] === F.period)[1],
+    F.exclude.length && `Excluding matches with ${F.exclude.map(esc).join(", ")}`,
+    F.minTrn && `${F.minTrn}+ tournaments`,
+    F.minMat && `${F.minMat}+ matches`,
+    useLegacy && "incl. old app",
+  ].filter(Boolean);
+  const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.minTrn > 0) + (F.minMat > 0);
+  const pool = appPlayers().filter((p) => !excludeSet.has(p.toLowerCase()));
+  const stepper = (k, label) => `<div class="stepper"><span>${label}</span>
+    <button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="-1" ${F[k] <= 0 ? "disabled" : ""}>−</button>
+    <strong>${F[k]}+</strong><button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="1">+</button></div>`;
+
   $app.innerHTML = `
     <h1>All-time leaderboard</h1>
+    ${statsTabs("table")}
+    <div class="spread">
+      <button class="btn sm ${nActive ? "primary" : ""}" data-act="f-toggle">Filters${nActive ? ` (${nActive})` : ""} ${S.filtersOpen ? "▲" : "▼"}</button>
+      ${nActive ? `<button class="btn sm ghost" data-act="f-clear">Clear filters</button>` : ""}
+    </div>
+    ${S.filtersOpen ? `<div class="card filters">
+      <h3>Minimum played</h3>${stepper("minTrn", "Tournaments")}${stepper("minMat", "Matches")}
+      <h3 style="margin-top:14px">Period</h3>
+      <div class="seg">${PERIODS.map(([v, l]) => `<button data-act="f-period" data-v="${v}" class="${F.period === v ? "on" : ""}">${l}</button>`).join("")}</div>
+      <h3 style="margin-top:14px">Leave out matches with</h3>
+      ${F.exclude.length ? `<div class="chips" style="margin-bottom:8px">${F.exclude.map((n) => `<button class="chip on" data-act="f-unex" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
+      ${pool.length ? `<div class="chips">${pool.map((n) => `<button class="chip" data-act="f-ex" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>` : `<p class="small muted">Players appear here once they've played in the app.</p>`}
+      <p class="small muted" style="margin:8px 0 0">Every match those players were in, as partner or opponent, is taken out and the table recalculated.</p>
+    </div>` : ""}
+    ${summary.length ? `<p class="filter-line">${summary.join(" · ")}</p>` : ""}
     <p class="small muted">Tap a column to sort. Match % = matches won (a draw counts as half). Pts % = share of all points played that you won. Avg = points per match.</p>
-    <div class="table-wrap"><table class="stats">
+    ${rows.length ? `<div class="table-wrap"><table class="stats">
       <tr>${cols.map(([k, l]) => `<th class="${k === "name" ? "l " : ""}${k === key ? "sorted" : ""}" data-act="sort" data-k="${k}">${l}${k === key ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       ${rows.map((r) => `<tr><td class="name l">${esc(r.name)}</td>${cols.slice(1).map(([k]) => `<td>${k === "diff" && r[k] > 0 ? "+" : ""}${k === "ptsPct" ? r[k].toFixed(1) : r[k]}${k === "winPct" || k === "ptsPct" ? "%" : ""}</td>`).join("")}</tr>`).join("")}
     </table></div>
-    <label class="row small" style="margin-top:14px"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""}/> Include totals from the old app</label>
+    ${rows.length < total ? `<p class="small muted">${total - rows.length} player(s) hidden by the minimum-played filter.</p>` : ""}`
+    : `<div class="card"><p class="muted" style="margin:0">No players match these filters yet.</p></div>`}
+    <label class="row small" style="margin-top:14px"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""} ${matchFilters ? "disabled" : ""}/> Include totals from the old app</label>
+    ${matchFilters && S.includeLegacy ? `<p class="small muted" style="margin-top:4px">Old-app totals are left out while a period or player filter is on — the old app only kept season totals, not individual matches.</p>` : ""}
     <h2>Backup</h2>
     <div class="row"><button class="btn" data-act="export-json">Download everything (JSON)</button>
       <button class="btn" data-act="export-csv">Download all matches (CSV)</button></div>`;
+}
+
+function renderH2H() {
+  const players = appPlayers();
+  const finished = S.tournaments.filter((t) => t.status === "finished");
+  let { a, b } = S.h2h;
+  if (a && !players.includes(a)) a = "";
+  if (b && (!players.includes(b) || b === a)) b = "";
+  const opt = (sel, none) => `<option value="">${none}</option>` + players.map((p) => `<option ${p === sel ? "selected" : ""}>${esc(p)}</option>`).join("");
+  const line = (r) => `${r.mat} played · ${r.w}W ${r.d}D ${r.l}L · <strong>${matchPct(r)}%</strong> matches · ${ptsPct(r).toFixed(1)}% pts`;
+  const recent = (list, me) => list.map((m) => {
+    const mine = m.a.includes(me) ? m.sa : m.sb, theirs = m.a.includes(me) ? m.sb : m.sa;
+    const res = mine > theirs ? "W" : mine < theirs ? "L" : "D";
+    return `<div class="recent"><span class="res res-${res}">${res}</span><span>${esc(m.a.join(" & "))} <strong>${m.sa}–${m.sb}</strong> ${esc(m.b.join(" & "))}</span><span class="muted small">${fmtDate(m.date).replace(/^\w+, /, "")}</span></div>`;
+  }).join("");
+
+  let body = "";
+  if (!players.length) body = `<div class="card"><p class="muted" style="margin:0">Head to head builds up from results recorded in this app. Finish a tournament and it'll start filling in.</p></div>`;
+  else if (!a) body = `<p class="muted">Pick a player to see their best partners and toughest opponents.</p>`;
+  else {
+    const h = headToHead(finished, a);
+    if (b) {
+      const o = h.others.find((x) => x.name.toLowerCase() === b.toLowerCase()) || { with: { mat: 0, w: 0, d: 0, l: 0, pf: 0, pa: 0, recent: [] }, against: { mat: 0, w: 0, d: 0, l: 0, pf: 0, pa: 0, recent: [] } };
+      body = `
+        <div class="card"><h3>${esc(a)} &amp; ${esc(b)} together</h3>
+          ${o.with.mat ? `<p class="h2h-line">${line(o.with)}</p>${recent(o.with.recent, a)}` : `<p class="muted small" style="margin:0">Haven't partnered yet.</p>`}</div>
+        <div class="card"><h3>${esc(a)} v ${esc(b)}</h3>
+          ${o.against.mat ? `<p class="h2h-line">${esc(a)}: ${line(o.against)}</p>${recent(o.against.recent, a)}` : `<p class="muted small" style="margin:0">Haven't played against each other yet.</p>`}</div>`;
+    } else {
+      const rank = (kind) => h.others.filter((o) => o[kind].mat)
+        .sort((x, y) => (y[kind].mat >= 3) - (x[kind].mat >= 3) || matchPct(y[kind]) - matchPct(x[kind]) || ptsPct(y[kind]) - ptsPct(x[kind]));
+      const table = (kind, title, hint) => {
+        const list = rank(kind);
+        if (kind === "against") list.sort((x, y) => (y.against.mat >= 3) - (x.against.mat >= 3) || matchPct(x.against) - matchPct(y.against) || ptsPct(x.against) - ptsPct(y.against));
+        return `<h2>${title}</h2><p class="small muted" style="margin-top:-4px">${hint}</p>
+          ${list.length ? `<div class="table-wrap"><table class="stats"><tr><th class="l">Player</th><th>Mat</th><th>W-D-L</th><th>Match %</th><th>Pts %</th></tr>
+          ${list.map((o) => { const r = o[kind]; return `<tr class="${r.mat < 3 ? "dim" : ""}" data-act="h2h-pick" data-name="${esc(o.name)}"><td class="name l">${esc(o.name)}</td><td>${r.mat}</td><td>${r.w}-${r.d}-${r.l}</td><td>${matchPct(r)}%</td><td>${ptsPct(r).toFixed(1)}%</td></tr>`; }).join("")}
+          </table></div>` : `<p class="muted small">Nothing yet.</p>`}`;
+      };
+      body = `<div class="card"><h3>${esc(a)} overall</h3><p class="h2h-line" style="margin:0">${line(h.overall)}</p></div>
+        ${table("with", "Best partners", "Your record when playing together. Fewer than 3 matches are greyed and listed last. Tap a name for the full head to head.")}
+        ${table("against", "Toughest opponents", "Your record against them, hardest first.")}`;
+    }
+  }
+  $app.innerHTML = `
+    <h1>All-time leaderboard</h1>
+    ${statsTabs("h2h")}
+    <div class="h2h-pick">
+      <label class="field"><span>Player</span><select data-act="h2h-a">${opt(a, "Choose…")}</select></label>
+      <label class="field"><span>With / against</span><select data-act="h2h-b" ${a ? "" : "disabled"}>${opt(b, "Everyone")}</select></label>
+    </div>
+    ${body}
+    <p class="small muted" style="margin-top:16px">Based on results recorded in this app (the old app only kept season totals).</p>`;
 }
 
 function download(name, text, type) {
@@ -597,6 +708,14 @@ document.addEventListener("click", async (e) => {
       return renderStats();
     }
     case "legacy": S.includeLegacy = el.checked; LS.set("pm.includeLegacy2", S.includeLegacy); return renderStats();
+    case "go": location.hash = el.dataset.href; return;
+    case "f-toggle": S.filtersOpen = !S.filtersOpen; return renderStats();
+    case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], period: "all" }; saveFilters(); return renderStats();
+    case "f-step": { const k = el.dataset.k; S.filters[k] = Math.max(0, S.filters[k] + +el.dataset.d); saveFilters(); return renderStats(); }
+    case "f-period": S.filters.period = el.dataset.v; saveFilters(); return renderStats();
+    case "f-ex": S.filters.exclude = [...S.filters.exclude, el.dataset.name]; saveFilters(); return renderStats();
+    case "f-unex": S.filters.exclude = S.filters.exclude.filter((n) => n !== el.dataset.name); saveFilters(); return renderStats();
+    case "h2h-pick": S.h2h = { a: S.h2h.a, b: el.dataset.name }; LS.set("pm.h2h", S.h2h); renderH2H(); window.scrollTo(0, 0); return;
     case "export-json": return download(`padel-backup-${today()}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tournaments: S.tournaments, legacy: S.legacy }, null, 1), "application/json");
     case "export-csv": return exportCsv();
   }
@@ -613,6 +732,9 @@ document.addEventListener("input", (e) => {
 });
 // re-render setup after number/checkbox edits settle (keeps typing smooth)
 document.addEventListener("change", (e) => {
+  const act = e.target.dataset.act;
+  if (act === "h2h-a") { S.h2h = { a: e.target.value, b: S.h2h.b === e.target.value ? "" : S.h2h.b }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
+  if (act === "h2h-b") { S.h2h = { ...S.h2h, b: e.target.value }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
   if (e.target.dataset.act === "pad-input") { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) padSet(v); return; }
   if (e.target.dataset.bind && route().page === "new") renderSetup(); });
 
