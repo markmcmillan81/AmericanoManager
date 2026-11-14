@@ -140,6 +140,8 @@ function render() {
   if (page === "t") return renderTournament(id);
   if (page === "stats") return renderStats();
   if (page === "about") return renderAbout();
+  if (page === "live") return renderList("live");
+  if (page === "results") return renderList("results");
   return renderHome();
 }
 window.addEventListener("hashchange", () => { S.swapSel = null; render(); window.scrollTo(0, 0); });
@@ -148,14 +150,39 @@ window.addEventListener("hashchange", () => { S.swapSel = null; render(); window
 function renderHome() {
   const live = S.tournaments.filter((t) => t.status === "live");
   const done = S.tournaments.filter((t) => t.status === "finished");
+  // one live tournament: the button goes straight to it; several: to the list
+  const liveHref = live.length === 1 ? `#/t/${live[0].id}` : "#/live";
+  const liveSub = live.length === 0 ? "Nothing on right now"
+    : live.length === 1 ? `${esc(live[0].name)} · ${fmtDate(live[0].date)}` : `${live.length} tournaments in progress`;
+  const lastDone = done[0];
   $app.innerHTML = `
     ${S.serverOk === false ? `<p class="error">Can't reach the server — showing the last saved copy.</p>` : ""}
-    ${isAdmin() ? `<a class="btn primary big" href="#/new" style="display:block;text-align:center;text-decoration:none">+ New tournament</a>` : ""}
-    ${live.length ? `<h2>Live tournaments</h2>` + live.map(cardFor).join("") : ""}
-    <h2>Previous results</h2>
-    ${done.length ? done.map(cardFor).join("") : `<p class="muted">No tournaments yet.${isAdmin() ? "" : " The organiser starts them from this page."}</p>`}
-    <p class="center small" style="margin-top:28px"><a href="#/about">About the club</a></p>`;
+    <div class="hub">
+      ${isAdmin() ? `<a class="hub-btn primary" href="#/new"><span class="hub-title">+ New tournament</span><span class="hub-sub">Pick players, randomise slots, start</span></a>` : ""}
+      <a class="hub-btn ${live.length ? "is-live" : ""}" href="${liveHref}">
+        <span class="hub-title">${live.length ? `<span class="dot"></span>` : ""}Live tournaments${live.length ? ` <span class="count">${live.length}</span>` : ""}</span>
+        <span class="hub-sub">${liveSub}</span></a>
+      <a class="hub-btn" href="#/results">
+        <span class="hub-title">Previous results${done.length ? ` <span class="count">${done.length}</span>` : ""}</span>
+        <span class="hub-sub">${lastDone ? `Latest: ${esc(lastDone.name)} · ${fmtDate(lastDone.date)}` : "No previous results yet"}</span></a>
+      <a class="hub-btn" href="#/stats">
+        <span class="hub-title">All-time leaderboard</span>
+        <span class="hub-sub">Tournaments, wins, match % and points %</span></a>
+      <a class="hub-btn quiet" href="#/about">
+        <span class="hub-title">About the club</span>
+        <span class="hub-sub">How it all started</span></a>
+    </div>`;
   if (live.length) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "home") renderHome(); } }, 20000);
+}
+
+function renderList(kind) {
+  const live = kind === "live";
+  const list = S.tournaments.filter((t) => t.status === (live ? "live" : "finished"));
+  $app.innerHTML = `
+    <h1>${live ? "Live tournaments" : "Previous results"}</h1>
+    ${list.length ? list.map(cardFor).join("") : `<div class="card"><p class="muted" style="margin:0">${live ? "No live tournaments right now." : "No previous results yet."}</p></div>`}
+    <p class="center small" style="margin-top:22px"><a href="#/">← Home</a></p>`;
+  if (live) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "live") renderList("live"); } }, 20000);
 }
 
 function cardFor(t) {
@@ -181,7 +208,7 @@ function renderAbout() {
       <p>These days we're a small community of dads from in and around the school, playing every Tuesday at 8:30am for 90 minutes, all year round (although the school holidays can make getting the numbers a bit of a challenge!).</p>
       <p>Mostly Americanos, with the odd shake-up of format, and the occasional social off the court too.</p>
     </div>
-    <p class="center small muted"><a href="#/">← Back to results</a></p>`;
+    <p class="center small muted"><a href="#/">← Home</a></p>`;
 }
 
 // ============ setup ============
