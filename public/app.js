@@ -171,7 +171,7 @@ function renderHome() {
         <span class="hub-sub">${lastDone ? `Latest: ${esc(lastDone.name)} · ${fmtDate(lastDone.date)}` : "No previous results yet"}</span></a>
       <a class="hub-btn" href="#/stats">
         <span class="hub-title">Stats</span>
-        <span class="hub-sub">Leaderboard, filters and head to head</span></a>
+        <span class="hub-sub">Player stats, filters and head to head</span></a>
       <a class="hub-btn quiet" href="#/about">
         <span class="hub-title">About the club</span>
         <span class="hub-sub">How it all started</span></a>
@@ -465,7 +465,7 @@ function periodFrom(p) {
 }
 const saveFilters = () => LS.set("pm.filters", S.filters);
 function statsTabs(which) {
-  return `<div class="seg" style="margin:4px 0 14px"><button data-act="go" data-href="#/stats" class="${which === "table" ? "on" : ""}">Leaderboard</button>
+  return `<div class="seg" style="margin:4px 0 14px"><button data-act="go" data-href="#/stats" class="${which === "table" ? "on" : ""}">Player stats</button>
     <button data-act="go" data-href="#/stats/h2h" class="${which === "h2h" ? "on" : ""}">Head to head</button></div>`;
 }
 // Names that have played at least one match in the new app (for pickers)
