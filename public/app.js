@@ -15,8 +15,7 @@ const S = {
   adminKey: LS.get("pm.adminKey", ""),
   tournaments: LS.get("pm.cache", []),
   pending: LS.get("pm.pending", {}), // edits not yet saved to the server, keyed by id
-  legacy: [],
-  includeLegacy: LS.get("pm.includeLegacy2", false),
+  history: [], // tournaments imported from the old app (public/history.json, read-only)
   loaded: false,
   serverOk: null,
   draft: null,
@@ -59,14 +58,22 @@ async function api(method, path, body) {
   return data;
 }
 
+// Merge live/server tournaments with the imported history, newest first.
+function withHistory(list) {
+  const ids = new Set(list.map((t) => t.id));
+  return [...list.filter((t) => !t.imported), ...S.history.filter((t) => !ids.has(t.id))]
+    .sort((x, y) => (y.date || "").localeCompare(x.date || "") || (y.createdAt || 0) - (x.createdAt || 0));
+}
+
 async function loadAll() {
   try {
     const list = await api("GET", "/api/tournaments");
-    S.tournaments = list;
+    S.tournaments = withHistory(list);
     S.serverOk = true;
     LS.set("pm.cache", list);
   } catch {
     S.serverOk = false;
+    S.tournaments = withHistory(S.tournaments);
   }
   // local edits that haven't reached the server win over the server copy
   for (const t of Object.values(S.pending)) upsertLocal(t);
@@ -74,8 +81,8 @@ async function loadAll() {
   flushPending();
 }
 
-async function loadLegacy() {
-  try { S.legacy = (await (await fetch("legacy.json", { cache: "no-cache" })).json()).players || []; } catch { S.legacy = []; }
+async function loadHistory() {
+  try { S.history = ((await (await fetch("history.json", { cache: "no-cache" })).json()).tournaments || []).map((t) => ({ ...t, imported: true })); } catch { S.history = []; }
 }
 
 function upsertLocal(t) {
@@ -232,7 +239,7 @@ function newDraft() {
 }
 
 function knownPlayers() {
-  const stats = careerStats(S.tournaments, S.legacy);
+  const stats = careerStats(S.tournaments, []);
   return stats.sort((a, b) => b.trn - a.trn || a.name.localeCompare(b.name)).map((r) => r.name);
 }
 
@@ -383,7 +390,8 @@ function renderTournament(id) {
 
     <details style="margin-top:18px"><summary>Who played with / against whom</summary>${matrix}</details>
 
-    ${isAdmin() ? `<h2>Organiser</h2><div class="row">
+    ${t.imported ? `<p class="small muted" style="margin-top:20px">Imported from the old app${t.oldTitle && t.oldTitle !== "Tournament" ? ` (originally “${esc(t.oldTitle)}”)` : ""}.</p>` : ""}
+    ${isAdmin() && !t.imported ? `<h2>Organiser</h2><div class="row">
       ${t.status === "live" ? `<button class="btn ${allDone ? "primary" : ""}" data-act="finish" data-id="${t.id}">Finish &amp; save result</button>
         <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>`
         : `<button class="btn ghost" data-act="reopen" data-id="${t.id}">Reopen to edit scores</button>`}
@@ -479,10 +487,9 @@ function renderStats() {
   const finished = S.tournaments.filter((t) => t.status === "finished");
   F.only ||= [];
   const matchFilters = F.exclude.length > 0 || F.only.length > 0 || F.period !== "all"; // old-app totals have no match detail
-  const useLegacy = S.includeLegacy && !matchFilters;
   const excludeSet = new Set(F.exclude.map((n) => n.toLowerCase()));
   const onlySet = new Set(F.only.map((n) => n.toLowerCase()));
-  let rows = careerStats(finished, useLegacy ? S.legacy : [], { exclude: excludeSet, only: onlySet, from: periodFrom(F.period) })
+  let rows = careerStats(finished, [], { exclude: excludeSet, only: onlySet, from: periodFrom(F.period) })
     .filter((r) => !excludeSet.has(r.name.toLowerCase()))
     .map((r) => ({ ...r, diff: r.pf - r.pa, winPct: matchPct(r), ptsPct: ptsPct(r), avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0 }));
   const total = rows.filter((r) => r.mat).length;
@@ -498,7 +505,6 @@ function renderStats() {
     F.exclude.length && `Excluding matches with ${F.exclude.map(esc).join(", ")}`,
     F.minTrn && `${F.minTrn}+ tournaments`,
     F.minMat && `${F.minMat}+ matches`,
-    useLegacy && "incl. old app",
   ].filter(Boolean);
   const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.only.length > 0) + (F.minTrn > 0) + (F.minMat > 0);
   const pool = appPlayers().filter((p) => !excludeSet.has(p.toLowerCase()) && !onlySet.has(p.toLowerCase()));
@@ -534,8 +540,6 @@ function renderStats() {
     </table></div>
     ${rows.length < total ? `<p class="small muted">${total - rows.length} player(s) hidden by the minimum-played filter.</p>` : ""}`
     : `<div class="card"><p class="muted" style="margin:0">No players match these filters yet.</p></div>`}
-    <label class="row small" style="margin-top:14px"><input type="checkbox" data-act="legacy" ${S.includeLegacy ? "checked" : ""} ${matchFilters ? "disabled" : ""}/> Include totals from the old app</label>
-    ${matchFilters && S.includeLegacy ? `<p class="small muted" style="margin-top:4px">Old-app totals are left out while a period or player filter is on — the old app only kept season totals, not individual matches.</p>` : ""}
     <h2>Backup</h2>
     <div class="row"><button class="btn" data-act="export-json">Download everything (JSON)</button>
       <button class="btn" data-act="export-csv">Download all matches (CSV)</button></div>`;
@@ -591,7 +595,7 @@ function renderH2H() {
       <label class="field"><span>With / against</span><select data-act="h2h-b" ${a ? "" : "disabled"}>${opt(b, "Everyone")}</select></label>
     </div>
     ${body}
-    <p class="small muted" style="margin-top:16px">Based on results recorded in this app (the old app only kept season totals).</p>`;
+    <p class="small muted" style="margin-top:16px">Includes the 18 tournaments imported from the old app (Feb–Nov 2026) plus everything played in this app.</p>`;
 }
 
 function download(name, text, type) {
@@ -714,7 +718,6 @@ document.addEventListener("click", async (e) => {
       LS.set("pm.statsSort", S.statsSort);
       return renderStats();
     }
-    case "legacy": S.includeLegacy = el.checked; LS.set("pm.includeLegacy2", S.includeLegacy); return renderStats();
     case "go": location.hash = el.dataset.href; return;
     case "f-toggle": S.filtersOpen = !S.filtersOpen; return renderStats();
     case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }; saveFilters(); return renderStats();
@@ -725,7 +728,7 @@ document.addEventListener("click", async (e) => {
     case "f-ex": S.filters.exclude = [...S.filters.exclude, el.dataset.name]; saveFilters(); return renderStats();
     case "f-unex": S.filters.exclude = S.filters.exclude.filter((n) => n !== el.dataset.name); saveFilters(); return renderStats();
     case "h2h-pick": S.h2h = { a: S.h2h.a, b: el.dataset.name }; LS.set("pm.h2h", S.h2h); renderH2H(); window.scrollTo(0, 0); return;
-    case "export-json": return download(`padel-backup-${today()}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tournaments: S.tournaments, legacy: S.legacy }, null, 1), "application/json");
+    case "export-json": return download(`padel-backup-${today()}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tournaments: S.tournaments }, null, 1), "application/json");
     case "export-csv": return exportCsv();
   }
 });
@@ -750,7 +753,8 @@ document.addEventListener("change", (e) => {
 // ============ start ============
 (async () => {
   render();
-  await Promise.all([loadLegacy(), loadAll()]);
+  await loadHistory();
+  await loadAll();
   render();
   if ("serviceWorker" in navigator && location.hostname !== "localhost") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
