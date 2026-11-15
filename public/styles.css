@@ -193,3 +193,16 @@ tr[data-act] { cursor: pointer; }
 button.hub-btn { width: 100%; text-align: left; font: inherit; cursor: pointer; }
 
 .backbtn { background: transparent; border: 0; color: var(--accent); font-weight: 700; font-size: 15px; padding: 4px 0 2px; margin: 0 0 4px; cursor: pointer; }
+
+/* inline score boxes */
+.score input.score-in { width: 50px; height: 46px; border-radius: 10px; border: 2px solid #3a3a3a; background: var(--card-2); color: var(--ink);
+  font-size: 22px; font-weight: 800; text-align: center; padding: 0; -webkit-appearance: none; }
+.score input.score-in.set { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.score input.score-in:focus { outline: none; border-color: #4da3ff; box-shadow: 0 0 0 3px rgba(77,163,255,.35); background: var(--card); color: var(--ink); }
+/* bottom tabs on the tournament page */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 8px; padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px);
+  background: rgba(0,0,0,.92); border-top: 2px solid var(--accent); backdrop-filter: blur(8px); }
+.tabbar button { flex: 1; border: 0; border-radius: 12px; padding: 12px 0; font-weight: 800; font-size: 16px; background: var(--card-2); color: var(--muted); cursor: pointer; }
+.tabbar button.on { background: var(--accent); color: var(--on-accent); }
+body.has-tabbar main { padding-bottom: calc(env(safe-area-inset-bottom) + 150px); }
+body.typing .tabbar { display: none; }

@@ -90,13 +90,13 @@ function upsertLocal(t) {
   if (i >= 0) S.tournaments[i] = t; else S.tournaments.unshift(t);
 }
 
-function saveT(t) {
+function saveT(t, quiet = false) {
   t.localUpdatedAt = Date.now();
   upsertLocal(t);
   S.pending[t.id] = t;
   LS.set("pm.pending", S.pending);
   LS.set("pm.cache", S.tournaments);
-  render();
+  if (quiet) updateSyncBadge(); else render();
   clearTimeout(saveT.timer);
   saveT.timer = setTimeout(flushPending, 400);
 }
@@ -147,6 +147,7 @@ function render() {
   document.getElementById("organiser-btn").classList.toggle("on", isAdmin());
   document.getElementById("organiser-btn").innerHTML = isAdmin() ? "Admin<br>logged in ✓" : "Admin<br>login";
   clearInterval(refreshTimer);
+  document.body.classList.remove("has-tabbar");
   if (page === "new") return renderSetup();
   if (page === "t") return renderTournament(id);
   if (page === "stats") return id === "h2h" ? renderH2H() : renderStats();
@@ -347,28 +348,33 @@ function draftToTournament(d, rounds) {
 // ============ tournament ============
 function renderTournament(id) {
   const t = findT(id);
+  document.body.classList.remove("has-tabbar");
   if (!t) { $app.innerHTML = S.loaded ? `<p>Tournament not found. <a href="#/">Home</a></p>` : `<p class="muted center">Loading…</p>`; return; }
   const canEdit = isAdmin() && t.status === "live";
-  const table = standings(t);
-  const winners = t.status === "finished" ? winnersOf(t) : [];
+  if (S.tTabFor !== id) { S.tTab = t.status === "live" ? "matches" : "standings"; S.tTabFor = id; }
+  const tab = S.tTab;
   const last = t.rounds[t.rounds.length - 1];
   const needNext = t.format === "mexicano" && t.status === "live" && roundDone(last) && t.rounds.length < t.totalRounds;
   const allDone = t.rounds.length >= t.totalRounds && t.rounds.every(roundDone);
   const firstOpen = t.rounds.findIndex((r) => !roundDone(r));
 
+  const scoreBox = (m, ri, mi, side) => {
+    const v = side === "a" ? m.sa : m.sb;
+    const has = Number.isFinite(v);
+    if (canEdit) return `<input class="score-in ${has ? "set" : ""}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off"
+      enterkeyhint="next" data-r="${ri}" data-m="${mi}" data-side="${side}" value="${has ? v : ""}" aria-label="Score">`;
+    return `<button data-act="need-admin" data-msg="enter results" class="${has ? "set" : ""}" ${t.status === "live" ? "" : "disabled"}>${has ? v : "–"}</button>`;
+  };
   const roundsHtml = t.rounds.map((round, ri) => {
     const sit = sittingOut(t, round);
     return `<div class="round" id="r${ri}">
-      <div class="round-head"><h3>Round ${ri + 1}</h3>${roundDone(round) ? `<span class="small muted">✓</span>` : ri === firstOpen ? `<span class="badge live">Now</span>` : ""}</div>
+      <div class="round-head"><h3>Round ${ri + 1}</h3><span class="rstat">${roundStat(round, ri, firstOpen)}</span></div>
       ${round.matches.map((m, mi) => {
         const done = matchDone(m);
         const aw = done && m.sa > m.sb, bw = done && m.sb > m.sa;
-        return `<div class="match"><div class="court">Court ${m.court}</div>
+        return `<div class="match" id="m${ri}-${mi}"><div class="court">Court ${m.court}</div>
           <div class="side ${aw ? "win" : ""}">${m.a.map((x) => esc(t.players[x])).join("<br>")}</div>
-          <div class="score">
-            <button data-act="${canEdit ? "pad" : "need-admin"}" data-msg="enter results" data-r="${ri}" data-m="${mi}" class="${Number.isFinite(m.sa) ? "set" : ""}" ${t.status === "live" ? "" : "disabled"}>${Number.isFinite(m.sa) ? m.sa : "–"}</button>
-            <button data-act="${canEdit ? "pad" : "need-admin"}" data-msg="enter results" data-r="${ri}" data-m="${mi}" data-side="b" class="${Number.isFinite(m.sb) ? "set" : ""}" ${t.status === "live" ? "" : "disabled"}>${Number.isFinite(m.sb) ? m.sb : "–"}</button>
-          </div>
+          <div class="score">${scoreBox(m, ri, mi, "a")}${scoreBox(m, ri, mi, "b")}</div>
           <div class="side b ${bw ? "win" : ""}">${m.b.map((x) => esc(t.players[x])).join("<br>")}</div></div>`;
       }).join("")}
       ${sit.length ? `<div class="sitting">Sitting out: ${sit.map((s) => esc(t.players[s])).join(", ")}</div>` : ""}
@@ -378,40 +384,127 @@ function renderTournament(id) {
   const pending = t.format === "mexicano" && t.rounds.length < t.totalRounds
     ? `<p class="small muted">${t.totalRounds - t.rounds.length} more round(s) — drawn from the standings when the current round is finished.</p>` : "";
 
+  $app.innerHTML = `${backBar(t.status === "live" ? "#/live" : "#/results")}
+    <div class="spread"><h1>${esc(t.name)}</h1><span class="badge ${t.status === "live" ? "live" : "done"}">${t.status === "live" ? "Live" : "Final"}</span></div>
+    <div class="small muted">${fmtDate(t.date)} · ${describe(t)}</div>
+    ${isAdmin() ? `<div data-sync="${t.id}" style="margin-top:4px">${syncText(t.id)}</div>` : ""}
+
+    <div id="pane-matches" ${tab === "matches" ? "" : "hidden"}>
+      ${canEdit ? `<p class="small muted" style="margin:10px 0 0">Tap a score box and type. ${t.scoring.fixedTotal ? `The other side fills in automatically and` : `Then`} the cursor moves on to the next match. Tap ✓ to close the keypad.</p>` : ""}
+      ${roundsHtml}
+      ${needNext && isAdmin() ? `<button class="btn primary big" data-act="next-round" data-id="${t.id}">Draw round ${t.rounds.length + 1}</button>` : ""}
+      ${pending}
+      ${t.imported ? `<p class="small muted" style="margin-top:20px">Imported from the old app${t.oldTitle && t.oldTitle !== "Tournament" ? ` (originally “${esc(t.oldTitle)}”)` : ""}.</p>` : ""}
+      ${isAdmin() && !t.imported ? `<h2>Admin</h2><div class="row">
+        ${t.status === "live" ? `<button class="btn ${allDone ? "primary" : ""}" data-act="finish" data-id="${t.id}">Finish &amp; save result</button>
+          <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>`
+          : `<button class="btn ghost" data-act="reopen" data-id="${t.id}">Reopen to edit scores</button>`}
+        <button class="btn danger" data-act="delete" data-id="${t.id}">Delete</button></div>` : ""}
+      <p class="small muted" style="margin-top:20px">Share this page: <a href="${location.href}">${esc(location.href)}</a></p>
+    </div>
+    <div id="pane-standings" ${tab === "standings" ? "" : "hidden"}>${standingsPane(t)}</div>
+    <nav class="tabbar"><button data-act="ttab" data-v="matches" class="${tab === "matches" ? "on" : ""}">Matches</button>
+      <button data-act="ttab" data-v="standings" class="${tab === "standings" ? "on" : ""}">Standings</button></nav>`;
+  document.body.classList.add("has-tabbar");
+
+  if (t.status === "live" && !isAdmin()) {
+    refreshTimer = setInterval(async () => { await loadAll(); if (route().id === id) renderTournament(id); }, 15000);
+  }
+}
+
+const roundStat = (round, ri, firstOpen) => roundDone(round) ? `<span class="small muted">✓</span>` : ri === firstOpen ? `<span class="badge live">Now</span>` : "";
+
+function standingsPane(t) {
+  const winners = t.status === "finished" ? winnersOf(t) : [];
   const { P, O } = meetings(t);
   const short = t.players.map((p) => esc(p.split(" ")[0].slice(0, 6)));
   const matrix = `<div class="table-wrap"><table class="matrix"><tr><th></th>${short.map((s) => `<th>${s}</th>`).join("")}</tr>
     ${t.players.map((p, i) => `<tr><th class="l">${esc(p)}</th>${t.players.map((_, j) => i === j ? `<td class="self"></td>`
       : `<td class="${P[i][j] > 1 || O[i][j] > 3 ? "hot" : ""}">${P[i][j]}/${O[i][j]}</td>`).join("")}</tr>`).join("")}
     </table></div><p class="small muted">Each cell: times as partners / times as opponents (including rounds not yet played).</p>`;
-
-  $app.innerHTML = `${backBar(t.status === "live" ? "#/live" : "#/results")}
-    <div class="spread"><h1>${esc(t.name)}</h1><span class="badge ${t.status === "live" ? "live" : "done"}">${t.status === "live" ? "Live" : "Final"}</span></div>
-    <div class="small muted">${fmtDate(t.date)} · ${describe(t)}</div>
-    ${isAdmin() ? `<div data-sync="${t.id}" style="margin-top:4px">${syncText(t.id)}</div>` : ""}
-    ${winners.length ? `<div class="card" style="text-align:center;font-size:18px">🏆 <strong>${winners.map(esc).join(" &amp; ")}</strong></div>` : ""}
-
-    <h2>Standings</h2>${standingsTable(table, t)}
-
-    <h2>Matches</h2>
-    ${roundsHtml}
-    ${needNext && isAdmin() ? `<button class="btn primary big" data-act="next-round" data-id="${t.id}">Draw round ${t.rounds.length + 1}</button>` : ""}
-    ${pending}
-
-    <details style="margin-top:18px"><summary>Who played with / against whom</summary>${matrix}</details>
-
-    ${t.imported ? `<p class="small muted" style="margin-top:20px">Imported from the old app${t.oldTitle && t.oldTitle !== "Tournament" ? ` (originally “${esc(t.oldTitle)}”)` : ""}.</p>` : ""}
-    ${isAdmin() && !t.imported ? `<h2>Admin</h2><div class="row">
-      ${t.status === "live" ? `<button class="btn ${allDone ? "primary" : ""}" data-act="finish" data-id="${t.id}">Finish &amp; save result</button>
-        <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>`
-        : `<button class="btn ghost" data-act="reopen" data-id="${t.id}">Reopen to edit scores</button>`}
-      <button class="btn danger" data-act="delete" data-id="${t.id}">Delete</button></div>` : ""}
-    <p class="small muted" style="margin-top:20px">Share this page: <a href="${location.href}">${esc(location.href)}</a></p>`;
-
-  if (t.status === "live" && !isAdmin()) {
-    refreshTimer = setInterval(async () => { await loadAll(); if (route().id === id) renderTournament(id); }, 15000);
-  }
+  return `${winners.length ? `<div class="card" style="text-align:center;font-size:18px;margin-top:14px">🏆 <strong>${winners.map(esc).join(" &amp; ")}</strong></div>` : ""}
+    <h2>Standings</h2>${standingsTable(standings(t), t)}
+    <details style="margin-top:18px"><summary>Who played with / against whom</summary>${matrix}</details>`;
 }
+
+// ============ inline score entry ============
+// Typing a score fills the other side (when scores add up to the target), saves,
+// and moves the cursor to the next match — no pop-up, the list stays in view.
+function scoreInputs() { return [...document.querySelectorAll("input.score-in")]; }
+function commitScore(input, final) {
+  const t = findT(route().id);
+  if (!t) return;
+  const ri = +input.dataset.r, mi = +input.dataset.m, side = input.dataset.side;
+  const m = t.rounds[ri]?.matches[mi];
+  if (!m) return;
+  const { target, fixedTotal } = t.scoring;
+  const raw = input.value.replace(/\D/g, "");
+  if (raw !== input.value) input.value = raw;
+  const other = input.closest(".score").querySelector(`input[data-side="${side === "a" ? "b" : "a"}"]`);
+  if (raw === "") {
+    if (!final) return;
+    m[side === "a" ? "sa" : "sb"] = null;
+    if (fixedTotal) { m[side === "a" ? "sb" : "sa"] = null; if (other) other.value = ""; }
+    afterScore(t, ri, input, other, false);
+    return;
+  }
+  const v = parseInt(raw, 10);
+  const max = fixedTotal ? target : 99;
+  const complete = raw.length >= 2 || v * 10 > max || v === 0;
+  if (!complete && !final) return; // e.g. "1" might become 10–19: wait for the next digit
+  if (v > max) { toast(`Max ${max}`); input.value = ""; return; }
+  m[side === "a" ? "sa" : "sb"] = v;
+  if (fixedTotal) { const o = target - v; m[side === "a" ? "sb" : "sa"] = o; if (other) other.value = o; }
+  afterScore(t, ri, input, other, !final);
+}
+function afterScore(t, ri, input, other, advance) {
+  input.classList.toggle("set", input.value !== "");
+  if (other) other.classList.toggle("set", other.value !== "");
+  // Mexicano: finishing the last round draws the next one (needs a full redraw)
+  if (t.format === "mexicano" && ri === t.rounds.length - 1 && roundDone(t.rounds[ri]) && t.rounds.length < t.totalRounds) {
+    t.rounds.push(nextMexicanoRound(t));
+    saveT(t);
+    toast(`Round ${t.rounds.length} drawn from the standings`);
+    if (advance) document.querySelector(`input.score-in[data-r="${ri + 1}"]`)?.focus();
+    return;
+  }
+  saveT(t, true);
+  refreshLiveBits(t);
+  if (!advance) return;
+  // next box: the other side if it's still empty, otherwise the next unscored match
+  const list = scoreInputs();
+  let next = other && other.value === "" ? other : null;
+  if (!next) {
+    const i = list.indexOf(input);
+    next = list.slice(i + 1).find((x) => x.dataset.side === "a" && x.value === "") || list.slice(i + 1).find((x) => x.value === "");
+  }
+  if (next) { next.focus(); next.closest(".match")?.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  else input.blur();
+}
+// Update winner highlights, round ticks and the standings pane without redrawing the inputs
+function refreshLiveBits(t) {
+  t.rounds.forEach((round, ri) => round.matches.forEach((m, mi) => {
+    const el = document.getElementById(`m${ri}-${mi}`);
+    if (!el) return;
+    const done = matchDone(m);
+    const sides = el.querySelectorAll(".side");
+    sides[0].classList.toggle("win", done && m.sa > m.sb);
+    sides[1].classList.toggle("win", done && m.sb > m.sa);
+  }));
+  const firstOpen = t.rounds.findIndex((r) => !roundDone(r));
+  t.rounds.forEach((round, ri) => {
+    const st = document.querySelector(`#r${ri} .rstat`);
+    if (st) st.innerHTML = roundStat(round, ri, firstOpen);
+  });
+  const pane = document.getElementById("pane-standings");
+  if (pane) pane.innerHTML = standingsPane(t);
+}
+document.addEventListener("input", (e) => { if (e.target.classList?.contains("score-in")) commitScore(e.target, false); }, true);
+document.addEventListener("focusout", (e) => { if (e.target.classList?.contains("score-in")) commitScore(e.target, true); document.body.classList.remove("typing"); });
+document.addEventListener("focusin", (e) => { if (e.target.classList?.contains("score-in")) { document.body.classList.add("typing"); e.target.select?.(); } });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.classList?.contains("score-in")) { e.preventDefault(); commitScore(e.target, true); const l = scoreInputs(); const i = l.indexOf(e.target); (l[i + 1] || e.target).focus(); if (!l[i + 1]) e.target.blur(); }
+});
 
 function standingsTable(table, t) {
   const showSat = table.some((r) => r.sat);
@@ -422,56 +515,7 @@ function standingsTable(table, t) {
   </table></div>`;
 }
 
-// ============ score pad ============
 let pad = null;
-function openPad(t, ri, mi, side) {
-  const m = t.rounds[ri].matches[mi];
-  pad = { id: t.id, ri, mi, side: side || "a", sa: m.sa, sb: m.sb };
-  drawPad();
-}
-function drawPad() {
-  if (!pad) { $modal.innerHTML = ""; return; }
-  const t = findT(pad.id);
-  const m = t.rounds[pad.ri].matches[pad.mi];
-  const { target, fixedTotal } = t.scoring;
-  const max = fixedTotal ? target : Math.max(target, 7);
-  const cur = pad.side === "a" ? pad.sa : pad.sb;
-  const nums = max <= 60 ? Array.from({ length: max + 1 }, (_, i) => i) : [];
-  $modal.innerHTML = `<div class="modal-bg" data-act="pad-close-bg"><div class="modal">
-    <div class="spread"><strong>Round ${pad.ri + 1} · Court ${m.court}</strong><button class="btn sm ghost" data-act="pad-close">Cancel</button></div>
-    <div class="pad-sides" style="margin-top:10px">
-      <div class="pad-side ${pad.side === "a" ? "active" : ""}" data-act="pad-side" data-side="a"><div class="who">${names(t, m.a)}</div><div class="val">${pad.sa ?? "–"}</div></div>
-      <div class="pad-side ${pad.side === "b" ? "active" : ""}" data-act="pad-side" data-side="b"><div class="who">${names(t, m.b)}</div><div class="val">${pad.sb ?? "–"}</div></div>
-    </div>
-    <p class="small muted" style="margin:8px 0 0">${fixedTotal ? `Tap a score for the highlighted side — the other side becomes ${target} minus it.` : `Tap a side, then its score.`}</p>
-    ${nums.length ? `<div class="pad-grid">${nums.map((v) => `<button data-act="pad-num" data-v="${v}" class="${cur === v ? "on" : ""}">${v}</button>`).join("")}</div>`
-      : `<input type="number" inputmode="numeric" data-act="pad-input" value="${cur ?? ""}" style="margin:12px 0"/>`}
-    <div class="row"><button class="btn ghost" data-act="pad-clear">Clear</button>
-      <button class="btn primary" style="flex:1" data-act="pad-save" ${Number.isFinite(pad.sa) && Number.isFinite(pad.sb) ? "" : "disabled"}>Save score</button></div>
-  </div></div>`;
-}
-function padSet(v) {
-  const t = findT(pad.id);
-  const { target, fixedTotal } = t.scoring;
-  if (pad.side === "a") { pad.sa = v; if (fixedTotal) pad.sb = Math.max(0, target - v); else if (!Number.isFinite(pad.sb)) pad.side = "b"; }
-  else { pad.sb = v; if (fixedTotal) pad.sa = Math.max(0, target - v); else if (!Number.isFinite(pad.sa)) pad.side = "a"; }
-  drawPad();
-}
-function padSave() {
-  const t = findT(pad.id);
-  const m = t.rounds[pad.ri].matches[pad.mi];
-  m.sa = pad.sa; m.sb = pad.sb;
-  const ri = pad.ri;
-  pad = null; drawPad();
-  // Mexicano: when the last round is complete, draw the next one automatically
-  if (t.format === "mexicano" && ri === t.rounds.length - 1 && roundDone(t.rounds[ri]) && t.rounds.length < t.totalRounds) {
-    t.rounds.push(nextMexicanoRound(t));
-    toast(`Round ${t.rounds.length} drawn from the standings`);
-  }
-  saveT(t);
-  const nextOpen = t.rounds.findIndex((r) => !roundDone(r));
-  if (nextOpen > ri) document.getElementById("r" + nextOpen)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
 
 // ============ stats ============
 const PERIODS = [["all", "All time"], ["year", "This year"], ["3m", "Last 3 months"]];
@@ -692,12 +736,9 @@ document.addEventListener("click", async (e) => {
       location.hash = `#/t/${t.id}`;
       return;
     }
-    case "pad": { const t = findT(route().id); return openPad(t, +el.dataset.r, +el.dataset.m, el.dataset.side || "a"); }
-    case "pad-side": pad.side = el.dataset.side; return drawPad();
-    case "pad-num": return padSet(+el.dataset.v);
-    case "pad-clear": pad.sa = null; pad.sb = null; pad.side = "a"; return drawPad();
-    case "pad-save": return padSave();
     case "pad-close": pad = null; $modal.innerHTML = ""; return;
+    case "ttab": S.tTab = el.dataset.v; document.getElementById("pane-matches").hidden = S.tTab !== "matches"; document.getElementById("pane-standings").hidden = S.tTab !== "standings";
+      document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.v === S.tTab)); window.scrollTo(0, 0); return;
     case "pad-close-bg": if (e.target === el) { pad = null; $modal.innerHTML = ""; } return;
     case "next-round": { const t = findT(el.dataset.id); t.rounds.push(nextMexicanoRound(t)); return saveT(t); }
     case "add-round": {
@@ -712,7 +753,7 @@ document.addEventListener("click", async (e) => {
       const t = findT(el.dataset.id);
       const open = t.rounds.flatMap((r) => r.matches).filter((m) => !matchDone(m)).length;
       if (open && !confirm(`${open} match(es) have no score. Finish anyway? Unscored matches won't count.`)) return;
-      t.status = "finished"; t.finishedAt = Date.now();
+      t.status = "finished"; t.finishedAt = Date.now(); S.tTab = "standings";
       if (open) t.rounds = t.rounds.map((r) => ({ matches: r.matches.filter(matchDone) })).filter((r) => r.matches.length);
       t.totalRounds = t.rounds.length;
       toast("Result saved 🏆");
@@ -771,7 +812,6 @@ document.addEventListener("change", (e) => {
   if (act === "f-period-sel") { S.filters.period = e.target.value; saveFilters(); return renderStats(); }
   if (act === "h2h-a") { S.h2h = { a: e.target.value, b: S.h2h.b === e.target.value ? "" : S.h2h.b }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
   if (act === "h2h-b") { S.h2h = { ...S.h2h, b: e.target.value }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
-  if (e.target.dataset.act === "pad-input") { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) padSet(v); return; }
   if (e.target.dataset.bind && route().page === "new") renderSetup(); });
 
 // ============ start ============
