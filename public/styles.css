@@ -173,3 +173,19 @@ select { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-
 .res-D { background: var(--card-2); color: var(--muted); }
 tr.dim td { opacity: .5; }
 tr[data-act] { cursor: pointer; }
+
+/* compact stats filters */
+.filterbox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 0 0 12px; overflow: hidden; }
+.fline + .fline { border-top: 1px solid var(--line); }
+.fline-head { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: 0; padding: 11px 14px; text-align: left; cursor: pointer; min-height: 48px; }
+.fline-head.static { cursor: default; }
+.fline-label { font-size: 14px; font-weight: 700; color: var(--muted); white-space: nowrap; min-width: 128px; }
+.fline-val { flex: 1; font-size: 15px; font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fline-chev { color: var(--muted); font-size: 12px; }
+.fline-body { padding: 0 14px 12px; }
+.fline.open { background: var(--card-2); }
+.stepper-inline { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+.stepper-inline strong { min-width: 36px; text-align: center; color: var(--accent); }
+.stepper-inline .btn { width: 38px; padding: 6px 0; }
+.fline-select { flex: 1; width: auto; padding: 7px 10px; }
+.fline-head.clear { justify-content: center; color: var(--accent); font-weight: 700; font-size: 14px; }

@@ -22,7 +22,7 @@ const S = {
   swapSel: null,
   statsSort: LS.get("pm.statsSort", { key: "trnWin", dir: -1 }),
   filters: Object.assign({ minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }, LS.get("pm.filters", {})),
-  filtersOpen: false,
+  openPick: null,
   h2h: LS.get("pm.h2h", { a: "", b: "" }),
 };
 const isAdmin = () => !!S.adminKey;
@@ -493,53 +493,54 @@ function renderStats() {
     .filter((r) => !excludeSet.has(r.name.toLowerCase()))
     .map((r) => ({ ...r, diff: r.pf - r.pa, winPct: matchPct(r), ptsPct: ptsPct(r), avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0 }));
   const total = rows.filter((r) => r.mat).length;
-  rows = rows.filter((r) => r.mat && r.trn >= F.minTrn && r.mat >= F.minMat);
+  rows = rows.filter((r) => r.mat && r.trn >= F.minTrn);
   const { key, dir } = S.statsSort;
   rows.sort((a, b) => (typeof a[key] === "string" ? a[key].localeCompare(b[key]) * -dir : (a[key] - b[key]) * dir) || b.trnWin - a.trnWin || b.winPct - a.winPct);
   let cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
   if (excludeSet.size || onlySet.size) cols = cols.filter(([k]) => k !== "trnWin"); // tournament wins don't make sense with matches removed
 
-  const summary = [
-    F.period !== "all" && PERIODS.find((p) => p[0] === F.period)[1],
-    F.only.length && `Only matches with ${F.only.map(esc).join(" or ")}`,
-    F.exclude.length && `Excluding matches with ${F.exclude.map(esc).join(", ")}`,
-    F.minTrn && `${F.minTrn}+ tournaments`,
-    F.minMat && `${F.minMat}+ matches`,
-  ].filter(Boolean);
-  const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.only.length > 0) + (F.minTrn > 0) + (F.minMat > 0);
+  const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.only.length > 0) + (F.minTrn > 0);
   const pool = appPlayers().filter((p) => !excludeSet.has(p.toLowerCase()) && !onlySet.has(p.toLowerCase()));
-  const stepper = (k, label) => `<div class="stepper"><span>${label}</span>
-    <button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="-1" ${F[k] <= 0 ? "disabled" : ""}>−</button>
-    <strong>${F[k]}+</strong><button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="1">+</button></div>`;
+  // one compact line per player filter; names only appear when that line is opened
+  const pickLine = (kind, label, list, none, addAct, removeAct, hint) => {
+    const open = S.openPick === kind;
+    return `<div class="fline ${open ? "open" : ""}">
+      <button class="fline-head" data-act="f-open" data-k="${kind}">
+        <span class="fline-label">${label}</span>
+        <span class="fline-val">${list.length ? list.map(esc).join(", ") : `<span class="muted">${none}</span>`}</span>
+        <span class="fline-chev">${open ? "▲" : "▼"}</span></button>
+      ${open ? `<div class="fline-body">
+        ${list.length ? `<div class="chips" style="margin-bottom:8px">${list.map((n) => `<button class="chip on" data-act="${removeAct}" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
+        <div class="chips">${pool.map((n) => `<button class="chip" data-act="${addAct}" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>
+        <p class="small muted" style="margin:8px 0 0">${hint}</p>
+        <button class="btn sm" data-act="f-open" data-k="${kind}" style="margin-top:8px">Done</button></div>` : ""}
+    </div>`;
+  };
 
   $app.innerHTML = `
     <h1>Stats</h1>
     ${statsTabs("table")}
-    <div class="spread">
-      <button class="btn sm ${nActive ? "primary" : ""}" data-act="f-toggle">Filters${nActive ? ` (${nActive})` : ""} ${S.filtersOpen ? "▲" : "▼"}</button>
-      ${nActive ? `<button class="btn sm ghost" data-act="f-clear">Clear filters</button>` : ""}
+    <div class="filterbox">
+      <div class="fline"><div class="fline-head static">
+        <span class="fline-label">Min tournaments</span>
+        <span class="fline-val stepper-inline">
+          <button class="btn sm ghost" data-act="f-step" data-k="minTrn" data-d="-1" ${F.minTrn <= 0 ? "disabled" : ""}>−</button>
+          <strong>${F.minTrn ? F.minTrn + "+" : "Any"}</strong>
+          <button class="btn sm ghost" data-act="f-step" data-k="minTrn" data-d="1">+</button></span></div></div>
+      <div class="fline"><label class="fline-head static">
+        <span class="fline-label">Period</span>
+        <select data-act="f-period-sel" class="fline-select">${PERIODS.map(([v, l]) => `<option value="${v}" ${F.period === v ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+      ${pickLine("only", "Matches with", F.only, "Anyone", "f-only", "f-unonly", "Only matches these players were in, as partner or opponent, e.g. pick yourself.")}
+      ${pickLine("exclude", "Matches excluding", F.exclude, "No one", "f-ex", "f-unex", "Every match these players were in is taken out and the table recalculated.")}
+      ${nActive ? `<div class="fline"><button class="fline-head clear" data-act="f-clear">Clear all filters</button></div>` : ""}
     </div>
-    ${S.filtersOpen ? `<div class="card filters">
-      <h3>Minimum played</h3>${stepper("minTrn", "Tournaments")}${stepper("minMat", "Matches")}
-      <h3 style="margin-top:14px">Period</h3>
-      <div class="seg">${PERIODS.map(([v, l]) => `<button data-act="f-period" data-v="${v}" class="${F.period === v ? "on" : ""}">${l}</button>`).join("")}</div>
-      <h3 style="margin-top:14px">Only matches with</h3>
-      ${F.only.length ? `<div class="chips" style="margin-bottom:8px">${F.only.map((n) => `<button class="chip on" data-act="f-unonly" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
-      ${pool.length ? `<div class="chips">${pool.map((n) => `<button class="chip" data-act="f-only" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>` : ""}
-      <p class="small muted" style="margin:8px 0 0">Shows everyone's record in just the matches those players were in, e.g. pick yourself to see how everyone does with and against you.</p>
-      <h3 style="margin-top:14px">Leave out matches with</h3>
-      ${F.exclude.length ? `<div class="chips" style="margin-bottom:8px">${F.exclude.map((n) => `<button class="chip on" data-act="f-unex" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
-      ${pool.length ? `<div class="chips">${pool.map((n) => `<button class="chip" data-act="f-ex" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>` : `<p class="small muted">Players appear here once they've played in the app.</p>`}
-      <p class="small muted" style="margin:8px 0 0">Every match those players were in, as partner or opponent, is taken out and the table recalculated.</p>
-    </div>` : ""}
-    ${summary.length ? `<p class="filter-line">${summary.join(" · ")}</p>` : ""}
-    <p class="small muted">Tap a column to sort. Match % = matches won (a draw counts as half). Pts % = share of all points played that you won. Avg = points per match.</p>
     ${rows.length ? `<div class="table-wrap"><table class="stats">
       <tr>${cols.map(([k, l]) => `<th class="${k === "name" ? "l " : ""}${k === key ? "sorted" : ""}" data-act="sort" data-k="${k}">${l}${k === key ? (dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr>
       ${rows.map((r) => `<tr><td class="name l">${esc(r.name)}</td>${cols.slice(1).map(([k]) => `<td>${k === "diff" && r[k] > 0 ? "+" : ""}${k === "ptsPct" ? r[k].toFixed(1) : r[k]}${k === "winPct" || k === "ptsPct" ? "%" : ""}</td>`).join("")}</tr>`).join("")}
     </table></div>
-    ${rows.length < total ? `<p class="small muted">${total - rows.length} player(s) hidden by the minimum-played filter.</p>` : ""}`
+    ${rows.length < total ? `<p class="small muted">${total - rows.length} player(s) hidden by the minimum-tournaments filter.</p>` : ""}`
     : `<div class="card"><p class="muted" style="margin:0">No players match these filters yet.</p></div>`}
+    <p class="small muted">Tap a column to sort. Match % = matches won (a draw counts as half). Pts % = share of all points played that you won. Avg = points per match.</p>
     <h2>Backup</h2>
     <div class="row"><button class="btn" data-act="export-json">Download everything (JSON)</button>
       <button class="btn" data-act="export-csv">Download all matches (CSV)</button></div>`;
@@ -719,8 +720,8 @@ document.addEventListener("click", async (e) => {
       return renderStats();
     }
     case "go": location.hash = el.dataset.href; return;
-    case "f-toggle": S.filtersOpen = !S.filtersOpen; return renderStats();
-    case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }; saveFilters(); return renderStats();
+    case "f-open": S.openPick = S.openPick === el.dataset.k ? null : el.dataset.k; return renderStats();
+    case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }; S.openPick = null; saveFilters(); return renderStats();
     case "f-only": S.filters.only = [...(S.filters.only || []), el.dataset.name]; saveFilters(); return renderStats();
     case "f-unonly": S.filters.only = S.filters.only.filter((n) => n !== el.dataset.name); saveFilters(); return renderStats();
     case "f-step": { const k = el.dataset.k; S.filters[k] = Math.max(0, S.filters[k] + +el.dataset.d); saveFilters(); return renderStats(); }
@@ -745,6 +746,7 @@ document.addEventListener("input", (e) => {
 // re-render setup after number/checkbox edits settle (keeps typing smooth)
 document.addEventListener("change", (e) => {
   const act = e.target.dataset.act;
+  if (act === "f-period-sel") { S.filters.period = e.target.value; saveFilters(); return renderStats(); }
   if (act === "h2h-a") { S.h2h = { a: e.target.value, b: S.h2h.b === e.target.value ? "" : S.h2h.b }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
   if (act === "h2h-b") { S.h2h = { ...S.h2h, b: e.target.value }; LS.set("pm.h2h", S.h2h); return renderH2H(); }
   if (e.target.dataset.act === "pad-input") { const v = parseInt(e.target.value, 10); if (Number.isFinite(v)) padSet(v); return; }
