@@ -22,7 +22,7 @@ const S = {
   draft: null,
   swapSel: null,
   statsSort: LS.get("pm.statsSort", { key: "trnWin", dir: -1 }),
-  filters: Object.assign({ minTrn: 0, minMat: 0, exclude: [], period: "all" }, LS.get("pm.filters", {})),
+  filters: Object.assign({ minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }, LS.get("pm.filters", {})),
   filtersOpen: false,
   h2h: LS.get("pm.h2h", { a: "", b: "" }),
 };
@@ -477,10 +477,12 @@ function appPlayers() {
 function renderStats() {
   const F = S.filters;
   const finished = S.tournaments.filter((t) => t.status === "finished");
-  const matchFilters = F.exclude.length > 0 || F.period !== "all"; // old-app totals have no match detail
+  F.only ||= [];
+  const matchFilters = F.exclude.length > 0 || F.only.length > 0 || F.period !== "all"; // old-app totals have no match detail
   const useLegacy = S.includeLegacy && !matchFilters;
   const excludeSet = new Set(F.exclude.map((n) => n.toLowerCase()));
-  let rows = careerStats(finished, useLegacy ? S.legacy : [], { exclude: excludeSet, from: periodFrom(F.period) })
+  const onlySet = new Set(F.only.map((n) => n.toLowerCase()));
+  let rows = careerStats(finished, useLegacy ? S.legacy : [], { exclude: excludeSet, only: onlySet, from: periodFrom(F.period) })
     .filter((r) => !excludeSet.has(r.name.toLowerCase()))
     .map((r) => ({ ...r, diff: r.pf - r.pa, winPct: matchPct(r), ptsPct: ptsPct(r), avg: r.mat ? +(r.pf / r.mat).toFixed(1) : 0 }));
   const total = rows.filter((r) => r.mat).length;
@@ -488,17 +490,18 @@ function renderStats() {
   const { key, dir } = S.statsSort;
   rows.sort((a, b) => (typeof a[key] === "string" ? a[key].localeCompare(b[key]) * -dir : (a[key] - b[key]) * dir) || b.trnWin - a.trnWin || b.winPct - a.winPct);
   let cols = [["name", "Name"], ["trn", "Trn"], ["trnWin", "Trn win"], ["mat", "Mat"], ["winPct", "Match %"], ["ptsPct", "Pts %"], ["w", "W"], ["d", "D"], ["l", "L"], ["pf", "Pts+"], ["pa", "Pts−"], ["diff", "Diff"], ["avg", "Avg"]];
-  if (excludeSet.size) cols = cols.filter(([k]) => k !== "trnWin"); // tournament wins don't make sense with matches removed
+  if (excludeSet.size || onlySet.size) cols = cols.filter(([k]) => k !== "trnWin"); // tournament wins don't make sense with matches removed
 
   const summary = [
     F.period !== "all" && PERIODS.find((p) => p[0] === F.period)[1],
+    F.only.length && `Only matches with ${F.only.map(esc).join(" or ")}`,
     F.exclude.length && `Excluding matches with ${F.exclude.map(esc).join(", ")}`,
     F.minTrn && `${F.minTrn}+ tournaments`,
     F.minMat && `${F.minMat}+ matches`,
     useLegacy && "incl. old app",
   ].filter(Boolean);
-  const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.minTrn > 0) + (F.minMat > 0);
-  const pool = appPlayers().filter((p) => !excludeSet.has(p.toLowerCase()));
+  const nActive = (F.period !== "all") + (F.exclude.length > 0) + (F.only.length > 0) + (F.minTrn > 0) + (F.minMat > 0);
+  const pool = appPlayers().filter((p) => !excludeSet.has(p.toLowerCase()) && !onlySet.has(p.toLowerCase()));
   const stepper = (k, label) => `<div class="stepper"><span>${label}</span>
     <button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="-1" ${F[k] <= 0 ? "disabled" : ""}>−</button>
     <strong>${F[k]}+</strong><button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="1">+</button></div>`;
@@ -514,6 +517,10 @@ function renderStats() {
       <h3>Minimum played</h3>${stepper("minTrn", "Tournaments")}${stepper("minMat", "Matches")}
       <h3 style="margin-top:14px">Period</h3>
       <div class="seg">${PERIODS.map(([v, l]) => `<button data-act="f-period" data-v="${v}" class="${F.period === v ? "on" : ""}">${l}</button>`).join("")}</div>
+      <h3 style="margin-top:14px">Only matches with</h3>
+      ${F.only.length ? `<div class="chips" style="margin-bottom:8px">${F.only.map((n) => `<button class="chip on" data-act="f-unonly" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
+      ${pool.length ? `<div class="chips">${pool.map((n) => `<button class="chip" data-act="f-only" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>` : ""}
+      <p class="small muted" style="margin:8px 0 0">Shows everyone's record in just the matches those players were in, e.g. pick yourself to see how everyone does with and against you.</p>
       <h3 style="margin-top:14px">Leave out matches with</h3>
       ${F.exclude.length ? `<div class="chips" style="margin-bottom:8px">${F.exclude.map((n) => `<button class="chip on" data-act="f-unex" data-name="${esc(n)}">✕ ${esc(n)}</button>`).join("")}</div>` : ""}
       ${pool.length ? `<div class="chips">${pool.map((n) => `<button class="chip" data-act="f-ex" data-name="${esc(n)}">+ ${esc(n)}</button>`).join("")}</div>` : `<p class="small muted">Players appear here once they've played in the app.</p>`}
@@ -710,7 +717,9 @@ document.addEventListener("click", async (e) => {
     case "legacy": S.includeLegacy = el.checked; LS.set("pm.includeLegacy2", S.includeLegacy); return renderStats();
     case "go": location.hash = el.dataset.href; return;
     case "f-toggle": S.filtersOpen = !S.filtersOpen; return renderStats();
-    case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], period: "all" }; saveFilters(); return renderStats();
+    case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }; saveFilters(); return renderStats();
+    case "f-only": S.filters.only = [...(S.filters.only || []), el.dataset.name]; saveFilters(); return renderStats();
+    case "f-unonly": S.filters.only = S.filters.only.filter((n) => n !== el.dataset.name); saveFilters(); return renderStats();
     case "f-step": { const k = el.dataset.k; S.filters[k] = Math.max(0, S.filters[k] + +el.dataset.d); saveFilters(); return renderStats(); }
     case "f-period": S.filters.period = el.dataset.v; saveFilters(); return renderStats();
     case "f-ex": S.filters.exclude = [...S.filters.exclude, el.dataset.name]; saveFilters(); return renderStats();

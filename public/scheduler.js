@@ -187,6 +187,7 @@ export function winnersOf(t) {
 // opts.from: "YYYY-MM-DD" — only tournaments on or after this date.
 export function careerStats(tournaments, legacy = [], opts = {}) {
   const exclude = opts.exclude || new Set();
+  const only = opts.only || new Set(); // keep only matches involving at least one of these players
   const map = new Map();
   const row = (name) => {
     const key = name.trim().toLowerCase();
@@ -205,6 +206,7 @@ export function careerStats(tournaments, legacy = [], opts = {}) {
       if (!matchDone(m)) continue;
       const names = [...m.a, ...m.b].map((s) => t.players[s]);
       if (names.some((n) => exclude.has(n.trim().toLowerCase()))) continue;
+      if (only.size && !names.some((n) => only.has(n.trim().toLowerCase()))) continue;
       for (const [side, mine, theirs] of [[m.a, m.sa, m.sb], [m.b, m.sb, m.sa]]) {
         for (const s of side) {
           const r = row(t.players[s]);
@@ -215,7 +217,7 @@ export function careerStats(tournaments, legacy = [], opts = {}) {
       }
     }
     playedHere.forEach((r) => r.trn++);
-    if (!exclude.size) winnersOf(t).forEach((name) => row(name).trnWin++);
+    if (!exclude.size && !only.size) winnersOf(t).forEach((name) => row(name).trnWin++);
   }
   return [...map.values()];
 }
