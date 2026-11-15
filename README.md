@@ -6,7 +6,7 @@ Runs weekly padel Americanos and Mexicanos for 4–8 players, keeps every result
 - **Play as:** individual (partners rotate) or fixed pairs
 - **Scoring:** points or games, any target (e.g. 24 points), with optional "scores add up to the target" auto-fill
 - **Matching:** each player count has a fixed slot rotation (slots 1–8). Randomise shuffles who sits in which slot, or tap two players to swap them.
-- **Viewing vs scoring:** anyone with the link can view. Only someone with the organiser key can create tournaments or enter scores.
+- **Viewing vs scoring:** anyone with the link can view. Only someone with the admin password can create tournaments or enter scores.
 - **History:** every tournament is stored online. The leaderboard adds your totals from the old app (`public/legacy.json`).
 - **Phone app:** installs to the iPhone or Android home screen from the browser. No App Store needed.
 
@@ -38,7 +38,7 @@ The tournament page has a "Who played with / against whom" table you can open, s
    - **Mac:** open Terminal, type `cd ` (with a space after it), drag the folder into the window, press Enter.
    - **Windows:** open the folder in File Explorer, click the address bar, type `cmd`, press Enter.
 4. Type `npm install` and press Enter. This downloads the one library the app needs and takes about a minute.
-5. Make a copy of `.env.example` named `.env` and change `change-me` to any password you like. That password is your organiser key for laptop testing. (On a Mac, files starting with a dot are hidden; press Cmd+Shift+. in Finder to show them.)
+5. Make a copy of `.env.example` named `.env` and change `change-me` to any password you like. That password is your admin password for laptop testing. (On a Mac, files starting with a dot are hidden; press Cmd+Shift+. in Finder to show them.)
 6. Type `npm run local` and press Enter. It prints something like:
    ```
    On this laptop:  http://localhost:8888
@@ -46,7 +46,7 @@ The tournament page has a "Who played with / against whom" table you can open, s
    ```
 7. Open the laptop address in Chrome. To see it at phone size, press F12 (Windows) or Cmd+Option+I (Mac), then click the phone icon.
 8. On your phone, connected to the same Wi-Fi, open the "On your phone" address in Safari. If a Mac firewall prompt appears, click Allow.
-9. Tap **Organiser** and enter the key from step 5. Then try a tournament.
+9. Tap **Admin login** and enter the key from step 5. Then try a tournament.
 
 Test results on your laptop are saved in the `.local-data` folder. Delete that folder to start fresh. Press Ctrl+C in the terminal to stop the app.
 
@@ -61,7 +61,7 @@ Test results on your laptop are saved in the `.local-data` folder. Delete that f
 **Netlify**
 
 3. On app.netlify.com, go to **Add new site → Import an existing project → GitHub**, then choose `padel-spot`. Netlify reads the settings from `netlify.toml`, so leave everything as it is and click **Deploy**.
-4. Go to **Site configuration → Environment variables → Add a variable**. Set the key to `ADMIN_KEY` and the value to your real organiser password. Make it a proper one, because this is what stops anyone else editing results.
+4. Go to **Site configuration → Environment variables → Add a variable**. Set the key to `ADMIN_KEY` and the value to your real admin password. Make it a proper one, because this is what stops anyone else editing results.
 5. Go to **Deploys → Trigger deploy → Deploy site**, so the new key takes effect.
 6. Optional: **Site configuration → Change site name** to something like `padel-spot-gresham`. Your link becomes `https://padel-spot-gresham.netlify.app`.
 
@@ -71,7 +71,7 @@ Storage (Netlify Blobs) switches on automatically, so there's no database to set
 
 - **iPhone:** open your Netlify link in **Safari**, tap **Share → Add to Home Screen**. It opens full-screen like a normal app.
 - **Android:** open the link in Chrome, then tap **⋮ → Add to Home screen** (or **Install app**).
-- Then tap **Organiser** once and enter your key. Your phone remembers it.
+- Then tap **Admin login** once and enter your key. Your phone remembers it.
 
 Other players can do the same without the key. They'll see live scores, results and the leaderboard, but can't change anything.
 
@@ -93,7 +93,7 @@ Made a mistake? Open the tournament, tap **Reopen to edit scores**, fix it, and 
 - **Backups:** once a month, go to Leaderboard → **Download everything (JSON)** and keep the file somewhere safe. The **CSV** download opens in Excel.
 - **Old-app totals:** these are in `public/legacy.json`, typed from your 11 Nov 2026 screenshot. Edit them on GitHub (open the file, click the pencil, Commit). Make sure names match exactly how you add players in the app (e.g. "Mark M"), so their stats combine.
 - **Changes and updates:** any change committed on GitHub goes live on Netlify in about a minute.
-- **Second organiser:** give them the organiser key. To revoke access, change `ADMIN_KEY` in Netlify and redeploy. Everyone then needs to log in again with the new key.
+- **Second organiser:** give them the admin password. To revoke access, change `ADMIN_KEY` in Netlify and redeploy. Everyone then needs to log in again with the new key.
 - **App name:** change "Charlie's Club" in `public/index.html` and `public/manifest.webmanifest`.
 
 ## Files

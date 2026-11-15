@@ -113,7 +113,7 @@ async function flushPending() {
         S.serverOk = true;
       } catch (e) {
         S.serverOk = false;
-        if (e.status === 401) toast("Organiser key rejected — log in again");
+        if (e.status === 401) toast("Admin password rejected — log in again");
         break;
       }
     }
@@ -145,7 +145,7 @@ let refreshTimer = null;
 function render() {
   const { page, id } = route();
   document.getElementById("organiser-btn").classList.toggle("on", isAdmin());
-  document.getElementById("organiser-btn").innerHTML = isAdmin() ? "Organiser<br>logged in ✓" : "Organiser<br>login";
+  document.getElementById("organiser-btn").innerHTML = isAdmin() ? "Admin<br>logged in ✓" : "Admin<br>login";
   clearInterval(refreshTimer);
   if (page === "new") return renderSetup();
   if (page === "t") return renderTournament(id);
@@ -169,7 +169,8 @@ function renderHome() {
   $app.innerHTML = `
     ${S.serverOk === false ? `<p class="error">Can't reach the server — showing the last saved copy.</p>` : ""}
     <div class="hub">
-      ${isAdmin() ? `<a class="hub-btn primary" href="#/new"><span class="hub-title">+ New tournament</span><span class="hub-sub">Pick players, randomise slots, start</span></a>` : ""}
+      ${isAdmin() ? `<a class="hub-btn primary" href="#/new"><span class="hub-title">+ New tournament</span><span class="hub-sub">Pick players, randomise slots, start</span></a>`
+        : `<button class="hub-btn primary" data-act="need-admin" data-msg="start a tournament"><span class="hub-title">+ New tournament</span><span class="hub-sub">Admin only</span></button>`}
       <a class="hub-btn ${live.length ? "is-live" : ""}" href="${liveHref}">
         <span class="hub-title">${live.length ? `<span class="dot"></span>` : ""}Live tournaments${live.length ? ` <span class="count">${live.length}</span>` : ""}</span>
         <span class="hub-sub">${liveSub}</span></a>
@@ -244,7 +245,7 @@ function knownPlayers() {
 }
 
 function renderSetup() {
-  if (!isAdmin()) { $app.innerHTML = `<p>Only the organiser can start tournaments. Tap <strong>Organiser</strong> above.</p>`; return; }
+  if (!isAdmin()) { $app.innerHTML = `<div class="card"><p style="margin:0 0 12px">Log in as admin to start a tournament.</p><button class="btn primary" data-act="organiser">Admin login</button></div>`; return; }
   const d = (S.draft ||= newDraft());
   const n = d.players.length;
   const err = validateSetup({ players: d.players, teams: d.teams });
@@ -356,8 +357,8 @@ function renderTournament(id) {
         return `<div class="match"><div class="court">Court ${m.court}</div>
           <div class="side ${aw ? "win" : ""}">${m.a.map((x) => esc(t.players[x])).join("<br>")}</div>
           <div class="score">
-            <button data-act="pad" data-r="${ri}" data-m="${mi}" class="${Number.isFinite(m.sa) ? "set" : ""}" ${canEdit ? "" : "disabled"}>${Number.isFinite(m.sa) ? m.sa : "–"}</button>
-            <button data-act="pad" data-r="${ri}" data-m="${mi}" data-side="b" class="${Number.isFinite(m.sb) ? "set" : ""}" ${canEdit ? "" : "disabled"}>${Number.isFinite(m.sb) ? m.sb : "–"}</button>
+            <button data-act="${canEdit ? "pad" : "need-admin"}" data-msg="enter results" data-r="${ri}" data-m="${mi}" class="${Number.isFinite(m.sa) ? "set" : ""}" ${t.status === "live" ? "" : "disabled"}>${Number.isFinite(m.sa) ? m.sa : "–"}</button>
+            <button data-act="${canEdit ? "pad" : "need-admin"}" data-msg="enter results" data-r="${ri}" data-m="${mi}" data-side="b" class="${Number.isFinite(m.sb) ? "set" : ""}" ${t.status === "live" ? "" : "disabled"}>${Number.isFinite(m.sb) ? m.sb : "–"}</button>
           </div>
           <div class="side b ${bw ? "win" : ""}">${m.b.map((x) => esc(t.players[x])).join("<br>")}</div></div>`;
       }).join("")}
@@ -391,7 +392,7 @@ function renderTournament(id) {
     <details style="margin-top:18px"><summary>Who played with / against whom</summary>${matrix}</details>
 
     ${t.imported ? `<p class="small muted" style="margin-top:20px">Imported from the old app${t.oldTitle && t.oldTitle !== "Tournament" ? ` (originally “${esc(t.oldTitle)}”)` : ""}.</p>` : ""}
-    ${isAdmin() && !t.imported ? `<h2>Organiser</h2><div class="row">
+    ${isAdmin() && !t.imported ? `<h2>Admin</h2><div class="row">
       ${t.status === "live" ? `<button class="btn ${allDone ? "primary" : ""}" data-act="finish" data-id="${t.id}">Finish &amp; save result</button>
         <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>`
         : `<button class="btn ghost" data-act="reopen" data-id="${t.id}">Reopen to edit scores</button>`}
@@ -618,11 +619,11 @@ function exportCsv() {
 // ============ organiser login ============
 function openLogin() {
   $modal.innerHTML = `<div class="modal-bg" data-act="pad-close-bg"><div class="modal">
-    <h3>${isAdmin() ? "Organiser" : "Organiser login"}</h3>
+    <h3>${isAdmin() ? "Admin" : "Admin login"}</h3>
     ${isAdmin() ? `<p class="small">You're logged in on this device and can create and score tournaments.</p>
       <div class="row"><button class="btn danger" data-act="logout">Log out</button><button class="btn ghost" data-act="pad-close">Close</button></div>`
-      : `<p class="small muted">Enter the organiser key (the ADMIN_KEY you set in Netlify). Everyone else can view without it.</p>
-      <input type="password" id="key-input" autocomplete="current-password" placeholder="Organiser key" />
+      : `<p class="small muted">Enter the admin password. Everyone else can view without it.</p>
+      <input type="password" id="key-input" autocomplete="current-password" placeholder="Admin password" />
       <p class="error" id="key-err"></p>
       <div class="row"><button class="btn ghost" data-act="pad-close">Cancel</button><button class="btn primary" style="flex:1" data-act="login">Log in</button></div>`}
   </div></div>`;
@@ -637,7 +638,7 @@ async function login() {
     await api("GET", "/api/auth");
     LS.set("pm.adminKey", key);
     $modal.innerHTML = "";
-    toast("Logged in as organiser");
+    toast("Logged in as admin");
     flushPending();
     render();
   } catch (e) {
@@ -654,6 +655,12 @@ document.addEventListener("click", async (e) => {
   const d = S.draft;
   switch (act) {
     case "organiser": return openLogin();
+    case "need-admin":
+      $modal.innerHTML = `<div class="modal-bg" data-act="pad-close-bg"><div class="modal">
+        <h3>Admin only</h3><p>Log in as admin to ${esc(el.dataset.msg || "do that")}.</p>
+        <div class="row"><button class="btn ghost" data-act="pad-close">Cancel</button>
+        <button class="btn primary" style="flex:1" data-act="organiser">Admin login</button></div></div></div>`;
+      return;
     case "login": return login();
     case "logout": S.adminKey = ""; LS.set("pm.adminKey", ""); $modal.innerHTML = ""; return render();
     case "draft": d[el.dataset.k] = el.dataset.v; if (el.dataset.k === "teams" || el.dataset.k === "format") d.rounds = null; S.swapSel = null; return renderSetup();
