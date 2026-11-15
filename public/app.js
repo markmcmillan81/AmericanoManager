@@ -170,8 +170,8 @@ function renderHome() {
         <span class="hub-title">Previous results${done.length ? ` <span class="count">${done.length}</span>` : ""}</span>
         <span class="hub-sub">${lastDone ? `Latest: ${esc(lastDone.name)} · ${fmtDate(lastDone.date)}` : "No previous results yet"}</span></a>
       <a class="hub-btn" href="#/stats">
-        <span class="hub-title">All-time leaderboard</span>
-        <span class="hub-sub">Tournaments, wins, match % and points %</span></a>
+        <span class="hub-title">Stats</span>
+        <span class="hub-sub">Leaderboard, filters and head to head</span></a>
       <a class="hub-btn quiet" href="#/about">
         <span class="hub-title">About the club</span>
         <span class="hub-sub">How it all started</span></a>
@@ -465,7 +465,7 @@ function periodFrom(p) {
 }
 const saveFilters = () => LS.set("pm.filters", S.filters);
 function statsTabs(which) {
-  return `<div class="seg" style="margin:4px 0 14px"><button data-act="go" data-href="#/stats" class="${which === "table" ? "on" : ""}">Table</button>
+  return `<div class="seg" style="margin:4px 0 14px"><button data-act="go" data-href="#/stats" class="${which === "table" ? "on" : ""}">Leaderboard</button>
     <button data-act="go" data-href="#/stats/h2h" class="${which === "h2h" ? "on" : ""}">Head to head</button></div>`;
 }
 // Names that have played at least one match in the new app (for pickers)
@@ -504,7 +504,7 @@ function renderStats() {
     <strong>${F[k]}+</strong><button class="btn sm ghost" data-act="f-step" data-k="${k}" data-d="1">+</button></div>`;
 
   $app.innerHTML = `
-    <h1>All-time leaderboard</h1>
+    <h1>Stats</h1>
     ${statsTabs("table")}
     <div class="spread">
       <button class="btn sm ${nActive ? "primary" : ""}" data-act="f-toggle">Filters${nActive ? ` (${nActive})` : ""} ${S.filtersOpen ? "▲" : "▼"}</button>
@@ -577,7 +577,7 @@ function renderH2H() {
     }
   }
   $app.innerHTML = `
-    <h1>All-time leaderboard</h1>
+    <h1>Stats</h1>
     ${statsTabs("h2h")}
     <div class="h2h-pick">
       <label class="field"><span>Player</span><select data-act="h2h-a">${opt(a, "Choose…")}</select></label>
