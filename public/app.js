@@ -597,7 +597,7 @@ function renderH2H() {
       <label class="field"><span>With / against</span><select data-act="h2h-b" ${a ? "" : "disabled"}>${opt(b, "Everyone")}</select></label>
     </div>
     ${body}
-    <p class="small muted" style="margin-top:16px">Includes the 18 tournaments imported from the old app (Feb–Nov 2026) plus everything played in this app.</p>`;
+    <p class="small muted" style="margin-top:16px">Includes the 17 tournaments imported from the old app (Feb–Nov 2026) plus everything played in this app.</p>`;
 }
 
 function download(name, text, type) {
