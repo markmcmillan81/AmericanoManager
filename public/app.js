@@ -4,6 +4,8 @@ import {
   headToHead, matchPct, ptsPct,
 } from "./scheduler.js";
 
+const APP_VERSION = "15 Nov 16:05"; // bump on every release so phones can show which version they're running
+
 // ============ state ============
 const $app = document.getElementById("app");
 const $modal = document.getElementById("modal-root");
@@ -195,7 +197,8 @@ function renderHome() {
       <a class="hub-btn quiet" href="#/about">
         <span class="hub-title">About the club</span>
         <span class="hub-sub">How it all started</span></a>
-    </div>`;
+    </div>
+    <p class="center small muted" style="margin-top:24px">Version ${APP_VERSION}</p>`;
   if (live.length) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "home") renderHome(); } }, 20000);
 }
 
