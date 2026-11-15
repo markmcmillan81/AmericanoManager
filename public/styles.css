@@ -191,3 +191,5 @@ tr[data-act] { cursor: pointer; }
 .fline-head.clear { justify-content: center; color: var(--accent); font-weight: 700; font-size: 14px; }
 
 button.hub-btn { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+
+.backbtn { background: transparent; border: 0; color: var(--accent); font-weight: 700; font-size: 15px; padding: 4px 0 2px; margin: 0 0 4px; cursor: pointer; }

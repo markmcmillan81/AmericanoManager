@@ -155,7 +155,18 @@ function render() {
   if (page === "results") return renderList("results");
   return renderHome();
 }
-window.addEventListener("hashchange", () => { S.swapSel = null; render(); window.scrollTo(0, 0); });
+// In-app navigation history, so "Back" returns to wherever you came from.
+const norm = (h) => h || "#/";
+const navStack = [norm(location.hash)];
+let replaceNav = false;
+window.addEventListener("hashchange", () => {
+  const h = norm(location.hash);
+  if (replaceNav) { navStack[navStack.length - 1] = h; replaceNav = false; }
+  else if (navStack.length > 1 && navStack[navStack.length - 2] === h) navStack.pop();
+  else navStack.push(h);
+  S.swapSel = null; render(); window.scrollTo(0, 0);
+});
+const backBar = (parent) => `<button class="backbtn" data-act="back" data-parent="${parent}">← Back</button>`;
 
 // ============ home ============
 function renderHome() {
@@ -190,10 +201,9 @@ function renderHome() {
 function renderList(kind) {
   const live = kind === "live";
   const list = S.tournaments.filter((t) => t.status === (live ? "live" : "finished"));
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar("#/")}
     <h1>${live ? "Live tournaments" : "Previous results"}</h1>
-    ${list.length ? list.map(cardFor).join("") : `<div class="card"><p class="muted" style="margin:0">${live ? "No live tournaments right now." : "No previous results yet."}</p></div>`}
-    <p class="center small" style="margin-top:22px"><a href="#/">← Home</a></p>`;
+    ${list.length ? list.map(cardFor).join("") : `<div class="card"><p class="muted" style="margin:0">${live ? "No live tournaments right now." : "No previous results yet."}</p></div>`}`;
   if (live) refreshTimer = setInterval(async () => { if (!Object.keys(S.pending).length) { await loadAll(); if (route().page === "live") renderList("live"); } }, 20000);
 }
 
@@ -213,14 +223,13 @@ function cardFor(t) {
 
 // ============ about ============
 function renderAbout() {
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar("#/")}
     <h1>About the club</h1>
     <div class="card about">
       <p>It all started at a fireworks night in 2025, when Charlie rounded up eight dads for a game of padel. It didn't take long to realise we'd stumbled onto something worth keeping.</p>
       <p>These days we're a small community of dads from in and around the school, playing every Tuesday at 8:30am for 90 minutes, all year round (although the school holidays can make getting the numbers a bit of a challenge!).</p>
       <p>Mostly Americanos, with the odd shake-up of format, and the occasional social off the court too.</p>
-    </div>
-    <p class="center small muted"><a href="#/">← Home</a></p>`;
+    </div>`;
 }
 
 // ============ setup ============
@@ -245,7 +254,7 @@ function knownPlayers() {
 }
 
 function renderSetup() {
-  if (!isAdmin()) { $app.innerHTML = `<div class="card"><p style="margin:0 0 12px">Log in as admin to start a tournament.</p><button class="btn primary" data-act="organiser">Admin login</button></div>`; return; }
+  if (!isAdmin()) { $app.innerHTML = `${backBar("#/")}<div class="card"><p style="margin:0 0 12px">Log in as admin to start a tournament.</p><button class="btn primary" data-act="organiser">Admin login</button></div>`; return; }
   const d = (S.draft ||= newDraft());
   const n = d.players.length;
   const err = validateSetup({ players: d.players, teams: d.teams });
@@ -275,7 +284,7 @@ function renderSetup() {
   const stops = !err ? fairStops(n, d.teams, 21).slice(0, 6) : [];
   const cyc = !err ? cycleInfo(n, d.teams).length : null;
 
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar("#/")}
     <h1>New tournament</h1>
     <label class="field"><span>Name</span><input type="text" data-bind="name" value="${esc(d.name)}" /></label>
     <label class="field"><span>Date</span><input type="date" data-bind="date" value="${esc(d.date)}" /></label>
@@ -376,7 +385,7 @@ function renderTournament(id) {
       : `<td class="${P[i][j] > 1 || O[i][j] > 3 ? "hot" : ""}">${P[i][j]}/${O[i][j]}</td>`).join("")}</tr>`).join("")}
     </table></div><p class="small muted">Each cell: times as partners / times as opponents (including rounds not yet played).</p>`;
 
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar(t.status === "live" ? "#/live" : "#/results")}
     <div class="spread"><h1>${esc(t.name)}</h1><span class="badge ${t.status === "live" ? "live" : "done"}">${t.status === "live" ? "Live" : "Final"}</span></div>
     <div class="small muted">${fmtDate(t.date)} · ${describe(t)}</div>
     ${isAdmin() ? `<div data-sync="${t.id}" style="margin-top:4px">${syncText(t.id)}</div>` : ""}
@@ -518,7 +527,7 @@ function renderStats() {
     </div>`;
   };
 
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar("#/")}
     <h1>Stats</h1>
     ${statsTabs("table")}
     <div class="filterbox">
@@ -589,7 +598,7 @@ function renderH2H() {
         ${table("against", "Toughest opponents", "Your record against them, hardest first.")}`;
     }
   }
-  $app.innerHTML = `
+  $app.innerHTML = `${backBar("#/")}
     <h1>Stats</h1>
     ${statsTabs("h2h")}
     <div class="h2h-pick">
@@ -679,6 +688,7 @@ document.addEventListener("click", async (e) => {
       const t = draftToTournament(d, rounds);
       S.draft = null;
       saveT(t);
+      replaceNav = true;
       location.hash = `#/t/${t.id}`;
       return;
     }
@@ -726,7 +736,12 @@ document.addEventListener("click", async (e) => {
       LS.set("pm.statsSort", S.statsSort);
       return renderStats();
     }
-    case "go": location.hash = el.dataset.href; return;
+    case "go": replaceNav = true; location.hash = el.dataset.href; return;
+    case "back": {
+      const target = navStack.length > 1 ? navStack[navStack.length - 2] : el.dataset.parent;
+      if (navStack.length <= 1) { replaceNav = true; navStack[0] = target; }
+      location.hash = target; return;
+    }
     case "f-open": S.openPick = S.openPick === el.dataset.k ? null : el.dataset.k; return renderStats();
     case "f-clear": S.filters = { minTrn: 0, minMat: 0, exclude: [], only: [], period: "all" }; S.openPick = null; saveFilters(); return renderStats();
     case "f-only": S.filters.only = [...(S.filters.only || []), el.dataset.name]; saveFilters(); return renderStats();
