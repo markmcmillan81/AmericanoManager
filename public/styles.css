@@ -206,3 +206,10 @@ button.hub-btn { width: 100%; text-align: left; font: inherit; cursor: pointer; 
 .tabbar button.on { background: var(--accent); color: var(--on-accent); }
 body.has-tabbar main { padding-bottom: calc(env(safe-area-inset-bottom) + 150px); }
 body.typing .tabbar { display: none; }
+
+/* home menu: one style for every button; New tournament stands out by its yellow lettering */
+.hub-btn.new .hub-title { color: var(--accent); }
+/* bottom tabs float clear of the "Powered by Netlify" badge in the corner */
+.tabbar { left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 58px); border: 2px solid var(--accent); border-radius: 16px;
+  padding: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.6); }
+body.has-tabbar main { padding-bottom: calc(env(safe-area-inset-bottom) + 190px); }

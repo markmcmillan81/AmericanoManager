@@ -4,7 +4,7 @@ import {
   headToHead, matchPct, ptsPct,
 } from "./scheduler.js";
 
-const APP_VERSION = "15 Nov 16:20"; // bump on every release so phones can show which version they're running
+const APP_VERSION = "19 Nov 14:00"; // bump on every release so phones can show which version they're running
 
 // ============ state ============
 const $app = document.getElementById("app");
@@ -183,18 +183,18 @@ function renderHome() {
   $app.innerHTML = `
     ${S.serverOk === false ? `<p class="error">Can't reach the server — showing the last saved copy.</p>` : ""}
     <div class="hub">
-      ${isAdmin() ? `<a class="hub-btn primary" href="#/new"><span class="hub-title">+ New tournament</span><span class="hub-sub">Pick players, randomise slots, start</span></a>`
-        : `<button class="hub-btn primary" data-act="need-admin" data-msg="start a tournament"><span class="hub-title">+ New tournament</span><span class="hub-sub">Admin only</span></button>`}
-      <a class="hub-btn ${live.length ? "is-live" : ""}" href="${liveHref}">
+      ${isAdmin() ? `<a class="hub-btn new" href="#/new"><span class="hub-title">+ New tournament</span><span class="hub-sub">Pick players, randomise slots, start</span></a>`
+        : `<button class="hub-btn new" data-act="need-admin" data-msg="start a tournament"><span class="hub-title">+ New tournament</span><span class="hub-sub">Admin only</span></button>`}
+      <a class="hub-btn" href="${liveHref}">
         <span class="hub-title">${live.length ? `<span class="dot"></span>` : ""}Live tournaments${live.length ? ` <span class="count">${live.length}</span>` : ""}</span>
         <span class="hub-sub">${liveSub}</span></a>
       <a class="hub-btn" href="#/results">
-        <span class="hub-title">Previous results${done.length ? ` <span class="count">${done.length}</span>` : ""}</span>
-        <span class="hub-sub">${lastDone ? `Latest: ${esc(lastDone.name)} · ${fmtDate(lastDone.date)}` : "No previous results yet"}</span></a>
+        <span class="hub-title">Previous results</span>
+        <span class="hub-sub">${lastDone ? `Latest: ${esc(lastDone.name)} · ${fmtDate(lastDone.date)}${winnersOf(lastDone).length ? ` · 🏆 ${winnersOf(lastDone).map(esc).join(" &amp; ")}` : ""}` : "No previous results yet"}</span></a>
       <a class="hub-btn" href="#/stats">
         <span class="hub-title">Stats</span>
         <span class="hub-sub">Player stats, filters and head to head</span></a>
-      <a class="hub-btn quiet" href="#/about">
+      <a class="hub-btn" href="#/about">
         <span class="hub-title">About the club</span>
         <span class="hub-sub">How it all started</span></a>
     </div>
@@ -400,7 +400,8 @@ function renderTournament(id) {
       ${t.imported ? `<p class="small muted" style="margin-top:20px">Imported from the old app${t.oldTitle && t.oldTitle !== "Tournament" ? ` (originally “${esc(t.oldTitle)}”)` : ""}.</p>` : ""}
       ${isAdmin() && !t.imported ? `<h2>Admin</h2><div class="row">
         ${t.status === "live" ? `<button class="btn ${allDone ? "primary" : ""}" data-act="finish" data-id="${t.id}">Finish &amp; save result</button>
-          <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>`
+          <button class="btn ghost" data-act="add-round" data-id="${t.id}">+ Add a round</button>
+          <button class="btn ghost" data-act="swap-open" data-id="${t.id}">Change player</button>`
           : `<button class="btn ghost" data-act="reopen" data-id="${t.id}">Reopen to edit scores</button>`}
         <button class="btn danger" data-act="delete" data-id="${t.id}">Delete</button></div>` : ""}
       <p class="small muted" style="margin-top:20px">Share this page: <a href="${location.href}">${esc(location.href)}</a></p>
@@ -428,6 +429,39 @@ function standingsPane(t) {
   return `${winners.length ? `<div class="card" style="text-align:center;font-size:18px;margin-top:14px">🏆 <strong>${winners.map(esc).join(" &amp; ")}</strong></div>` : ""}
     <h2>Standings</h2>${standingsTable(standings(t), t)}
     <details style="margin-top:18px"><summary>Who played with / against whom</summary>${matrix}</details>`;
+}
+
+// ============ change player ============
+// Swap one player for another in a live tournament. The newcomer takes over the
+// leaver's slot, so the rotation is unchanged.
+function drawSwap() {
+  const t = findT(S.swap.id);
+  const out = S.swap.out;
+  const scored = out == null ? 0 : t.rounds.flatMap((r) => r.matches).filter((m) => matchDone(m) && [...m.a, ...m.b].includes(out)).length;
+  const inT = new Set(t.players.map((p) => p.toLowerCase()));
+  const pool = knownPlayers().filter((p) => !inT.has(p.toLowerCase()));
+  $modal.innerHTML = `<div class="modal-bg" data-act="pad-close-bg"><div class="modal">
+    <div class="spread"><h3 style="margin:0">Change player</h3><button class="btn sm ghost" data-act="pad-close">Cancel</button></div>
+    <p class="small muted" style="margin:10px 0 6px">1. Who's dropping out?</p>
+    <div class="chips">${t.players.map((p, i) => `<button class="chip ${out === i ? "on" : ""}" data-act="swap-out" data-i="${i}">${esc(p)}</button>`).join("")}</div>
+    ${out == null ? "" : `
+      ${scored ? `<p class="small" style="color:var(--accent);margin:10px 0 0">${esc(t.players[out])} already has ${scored} scored match${scored > 1 ? "es" : ""}. Those will count for the new player.</p>` : ""}
+      <p class="small muted" style="margin:12px 0 6px">2. Who's coming in? They take ${esc(t.players[out])}'s place in every match.</p>
+      <div class="row" style="flex-wrap:nowrap"><input type="text" id="swap-new" placeholder="New name…" autocomplete="off" />
+        <button class="btn" data-act="swap-typed">Swap</button></div>
+      ${pool.length ? `<div class="chips" style="margin-top:8px">${pool.map((p) => `<button class="chip" data-act="swap-in" data-name="${esc(p)}">+ ${esc(p)}</button>`).join("")}</div>` : ""}`}
+  </div></div>`;
+}
+function doSwap(name) {
+  name = (name || "").trim().replace(/\s+/g, " ");
+  const t = findT(S.swap.id);
+  if (!name || S.swap.out == null) return;
+  if (t.players.some((p) => p.toLowerCase() === name.toLowerCase())) return toast(`${name} is already playing`);
+  const old = t.players[S.swap.out];
+  t.players[S.swap.out] = name;
+  S.swap = null; $modal.innerHTML = "";
+  toast(`${name} in for ${old}`);
+  saveT(t);
 }
 
 // ============ inline score entry ============
@@ -740,6 +774,10 @@ document.addEventListener("click", async (e) => {
       return;
     }
     case "pad-close": pad = null; $modal.innerHTML = ""; return;
+    case "swap-open": S.swap = { id: el.dataset.id, out: null }; return drawSwap();
+    case "swap-out": S.swap.out = +el.dataset.i; return drawSwap();
+    case "swap-in": return doSwap(el.dataset.name);
+    case "swap-typed": return doSwap(document.getElementById("swap-new").value);
     case "ttab": S.tTab = el.dataset.v; document.getElementById("pane-matches").hidden = S.tTab !== "matches"; document.getElementById("pane-standings").hidden = S.tTab !== "standings";
       document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.v === S.tTab)); window.scrollTo(0, 0); return;
     case "pad-close-bg": if (e.target === el) { pad = null; $modal.innerHTML = ""; } return;
