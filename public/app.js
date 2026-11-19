@@ -4,7 +4,7 @@ import {
   headToHead, matchPct, ptsPct,
 } from "./scheduler.js";
 
-const APP_VERSION = "19 Nov 14:00"; // bump on every release so phones can show which version they're running
+const APP_VERSION = "19 Nov 14:10"; // bump on every release so phones can show which version they're running
 
 // ============ state ============
 const $app = document.getElementById("app");
